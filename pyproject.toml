@@ -38,5 +38,8 @@
     Repository = "https://github.com/mariorodrigues10/CC"
     "Bug Tracker" = "https://github.com/mariorodrigues10/CC/issues"
 
+[tool.setuptools]
+py-modules = []
+
 [tool.mypy]
     disallow_untyped_defs = true
