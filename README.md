@@ -18,12 +18,18 @@ $ git clone https://github.com/mariorodrigues10/CC.git
 $ python -m venv .venv
 ```
 
-To run the project, do:
+To run the project, start by running:
 
 ```
 $ source .venv/bin/activate
 $ pip install .
-$ python -m CC
+```
+
+To run the server and the agent, run, respectively:
+
+```
+$ python -m server
+$ python -m agent
 ```
 
 To exit the virtual environment, you can run:
@@ -45,8 +51,8 @@ Before opening a Pull Request, please run your code though `pylint` and `mypy`, 
 that may appear:
 
 ```
-$ pylint CC
-$ mypy CC
+$ pylint server agent common
+$ mypy server agent common
 ```
 
 Our configuration for these checkers disallows the use of dynamic typing, and your PR won't be
