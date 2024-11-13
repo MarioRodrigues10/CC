@@ -1,4 +1,5 @@
 import struct
+from typing import Any
 
 class IPerfOutput:
     def __init__(self, jitter: float, bandwidth: float, loss: float):
@@ -13,7 +14,7 @@ class IPerfOutput:
         return b''.join([jitter_bytes, bandwidth_bytes, loss_bytes])
 
     @classmethod
-    def deserialize(cls, data: bytes) -> 'IPerfOutput':
+    def deserialize(cls: Any, data: bytes) -> 'IPerfOutput':
         jitter = struct.unpack('>d', data[:8])[0]
         bandwidth = struct.unpack('>d', data[8:16])[0]
         loss = struct.unpack('>d', data[16:24])[0]

@@ -1,3 +1,5 @@
+from typing import Any
+
 class IPOutput:
     def __init__(self, interface_name: str, connectivity: bool, tx_bytes: int,
                  tx_packets: int, rx_bytes: int, rx_packets: int):
@@ -18,7 +20,7 @@ class IPOutput:
         return b''.join([tx_bytes_bytes, tx_packets_bytes, rx_bytes_bytes, rx_packets_bytes,
                         connectivity_bytes, interface_name_bytes])
 
-    def deserialize(self, cls, data: bytes) -> 'IPOutput':
+    def deserialize(self, cls: Any, data: bytes) -> 'IPOutput':
         tx_bytes = int.from_bytes(data[:8], 'big')
         tx_packets = int.from_bytes(data[8:16], 'big')
         rx_bytes = int.from_bytes(data[16:24], 'big')

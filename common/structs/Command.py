@@ -1,5 +1,6 @@
 import struct
 from enum import Enum
+from typing import Any
 
 class TransportProtocol(Enum):
     TCP = 0
@@ -14,7 +15,7 @@ class CommandType(Enum):
 
 class Command:
     @classmethod
-    def deserialize(cls, data: bytes):
+    def deserialize(cls: Any, data: bytes) -> Any:
         command_type = CommandType(int.from_bytes(data[:1], 'big'))
         if command_type == CommandType.PING:
             return PingCommand.deserialize(data[1:])
@@ -40,7 +41,7 @@ class PingCommand(Command):
         return b''.join([count_bytes, rtt_alert_bytes, targets_bytes])
 
     @classmethod
-    def deserialize(cls, data: bytes) -> 'PingCommand':
+    def deserialize(cls: Any, data: bytes) -> 'PingCommand':
         count = int.from_bytes(data[:8], 'big')
         rtt_alert = struct.unpack('>d', data[8:16])[0]
         targets = [target.decode('utf-8') for target in data[16:].split(b'\0')]
@@ -69,7 +70,7 @@ class IPerfCommand(Command):
                         bandwidth_alert_bytes, transport_bytes, targets_bytes])
 
     @classmethod
-    def deserialize(cls, data: bytes) -> 'IPerfCommand':
+    def deserialize(cls: Any, data: bytes) -> 'IPerfCommand':
         bytes_val = int.from_bytes(data[:8], 'big')
         jitter_alert = struct.unpack('>d', data[8:16])[0]
         loss_alert = struct.unpack('>d', data[16:24])[0]
@@ -93,7 +94,7 @@ class IPCommand(Command):
         return b''.join([alert_down_bytes, targets_bytes])
 
     @classmethod
-    def deserialize(cls, data: bytes) -> 'IPCommand':
+    def deserialize(cls: Any, data: bytes) -> 'IPCommand':
         alert_down = struct.unpack('>d', data[:1])[0]
         targets = [target.decode('utf-8') for target in data[1:].split(b'\0')]
         return cls(targets=targets, alert_down=alert_down)
@@ -112,7 +113,7 @@ class SystemMonitorCommand(Command):
         return b''.join([cpu_alert_bytes, memory_alert_bytes, targets_bytes])
 
     @classmethod
-    def deserialize(cls, data: bytes) -> 'SystemMonitorCommand':
+    def deserialize(cls: Any, data: bytes) -> 'SystemMonitorCommand':
         cpu_alert = struct.unpack('>d', data[:8])[0]
         memory_alert = struct.unpack('>d', data[8:16])[0]
         targets = [target.decode('utf-8') for target in data[16:].split(b'\0')]

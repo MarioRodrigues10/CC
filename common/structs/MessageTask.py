@@ -1,4 +1,5 @@
 import struct
+from typing import Any
 from Command import Command
 
 class MessageTask:
@@ -13,7 +14,7 @@ class MessageTask:
         command_bytes = self.command.serialize()
         return b''.join([frequency_bytes, task_id_bytes, command_bytes])
 
-    def deserialize(self, cls, data: bytes) -> 'MessageTask':
+    def deserialize(self, cls: Any, data: bytes) -> 'MessageTask':
         frequency = struct.unpack('>d', data[:8])[0]
         task_id = data[8:24].decode('utf-8')
         command = Command.deserialize(data[24:])
