@@ -1,17 +1,16 @@
+import struct
 class SystemMonitor:
-    SCALE = 1_000_000
-
     def __init__(self, cpu: float, memory: float):
         self.cpu = cpu
         self.memory = memory
     
     def serialize(self) -> bytes:
-        cpu_bytes = int(self.cpu * self.SCALE).to_bytes(8, 'big', signed=True)
-        memory_bytes = int(self.memory * self.SCALE).to_bytes(8, 'big')
-        return b"".join([cpu_bytes, memory_bytes])
+        cpu_bytes = struct.pack('>d', self.cpu)
+        memory_bytes = struct.pack('>d', self.memory)
+        return b''.join([cpu_bytes, memory_bytes])
     
     def deserialize(cls, data: bytes):
-        cpu = int.from_bytes(data[:8], 'big') / cls.SCALE
-        memory = int.from_bytes(data[8:], 'big') / cls.SCALE
+        cpu = struct.unpack('>d', data[:8])[0]
+        memory = struct.unpack('>d', data[8:16])[0]
         return cls(cpu=cpu, memory=memory)
     

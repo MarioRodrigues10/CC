@@ -70,7 +70,6 @@ class IPCommand:
         targets = [target.decode('utf-8') for target in data[1:].split(b'\0')]
         return cls(targets=targets, alert_down=alert_down)
 
-
 class SystemMonitorCommand:
     def __init__(self, targets: list[str], cpu_alert: float, memory_alert: float):
         self.targets = targets

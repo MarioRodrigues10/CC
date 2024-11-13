@@ -6,7 +6,7 @@ class MessagePrepare:
     def serialize(self) -> bytes:
         iperfTCP_bytes = self.iperfTCP.to_bytes(1, 'big')
         iperfUDP_bytes = self.iperfUDP.to_bytes(1, 'big')
-        return b"".join([iperfTCP_bytes, iperfUDP_bytes])
+        return b''.join([iperfTCP_bytes, iperfUDP_bytes])
 
     def deserialize(cls, data: bytes):
         iperfTCP = bool.from_bytes(data[0], 'big')
