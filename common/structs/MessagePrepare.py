@@ -4,12 +4,12 @@ class MessagePrepare:
         self.iperf_udp = iperf_udp
 
     def serialize(self) -> bytes:
-        iperf_tcp_bytes = self.iperf_tcp.to_bytes(1, 'big')
-        iperf_udp_bytes = self.iperf_udp.to_bytes(1, 'big')
+        iperf_tcp_bytes = int(self.iperf_tcp).to_bytes(1, 'big')
+        iperf_udp_bytes = int(self.iperf_udp).to_bytes(1, 'big')
         return b''.join([iperf_tcp_bytes, iperf_udp_bytes])
 
     def deserialize(self, cls, data: bytes) -> 'MessagePrepare':
-        iperf_tcp = bool.from_bytes(data[0], 'big')
-        iperf_udp = bool.from_bytes(data[1], 'big')
+        iperf_tcp = bool(int.from_bytes(data[0:1], 'big'))
+        iperf_udp = bool(int.from_bytes(data[1:2], 'big'))
 
         return cls(iperf_tcp=iperf_tcp, iperf_udp=iperf_udp)
