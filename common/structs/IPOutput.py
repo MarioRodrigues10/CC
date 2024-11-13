@@ -12,7 +12,7 @@ class IPOutput:
 
     def serialize(self) -> bytes:
         interface_name_bytes = self.interface_name.encode('utf-8')
-        connectivity_bytes = self.connectivity.to_bytes(1, 'big')
+        connectivity_bytes = int(self.connectivity).to_bytes(1, 'big')
         tx_bytes_bytes = self.tx_bytes.to_bytes(8, 'big')
         tx_packets_bytes = self.tx_packets.to_bytes(8, 'big')
         rx_bytes_bytes = self.rx_bytes.to_bytes(8, 'big')
@@ -25,7 +25,7 @@ class IPOutput:
         tx_packets = int.from_bytes(data[8:16], 'big')
         rx_bytes = int.from_bytes(data[16:24], 'big')
         rx_packets = int.from_bytes(data[24:32], 'big')
-        connectivity = data[32:33].decode('utf-8')
+        connectivity = bool(int.from_bytes(data[32:33], 'big'))
         interface_name = data[33:].decode('utf-8')
 
         return cls(interfaceName=interface_name, connectivity=connectivity, tx_bytes=tx_bytes,
