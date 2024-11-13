@@ -1,9 +1,9 @@
 import struct
 from typing import Any
-from Command import Command
+from common.structs.Command import Command
 
 class MessageTask:
-    def __init__(self, task_id: str, frequency: float, command: Command):
+    def __init__(self, task_id: str, frequency: float, command: Any):
         self.task_id = task_id
         self.frequency = frequency
         self.command = command
