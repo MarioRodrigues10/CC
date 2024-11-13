@@ -18,7 +18,7 @@ class IPOutput:
         return b''.join([tx_bytes_bytes, tx_packets_bytes, rx_bytes_bytes, rx_packets_bytes,
                         connectivity_bytes, interface_name_bytes])
 
-    def deserialize(self, cls, data: bytes):
+    def deserialize(self, cls, data: bytes) -> 'IPOutput':
         tx_bytes = int.from_bytes(data[:8], 'big')
         tx_packets = int.from_bytes(data[8:16], 'big')
         rx_bytes = int.from_bytes(data[16:24], 'big')

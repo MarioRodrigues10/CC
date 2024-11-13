@@ -8,7 +8,7 @@ class MessagePrepare:
         iperf_udp_bytes = self.iperf_udp.to_bytes(1, 'big')
         return b''.join([iperf_tcp_bytes, iperf_udp_bytes])
 
-    def deserialize(self, cls, data: bytes):
+    def deserialize(self, cls, data: bytes) -> 'MessagePrepare':
         iperf_tcp = bool.from_bytes(data[0], 'big')
         iperf_udp = bool.from_bytes(data[1], 'big')
 
