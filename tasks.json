@@ -1,0 +1,88 @@
+{
+    "tasks": [
+        {
+            "task_id": "task-202",
+            "frequency": 20.0,
+            "agents": [
+                "manuel", "alice" ,"bob"
+            ],
+            "command": {
+                "type": "ping",
+                "targets": ["10.0.0.1", "10.0.0.2", "10.0.0.3"],
+                "count": 5,
+                "rttAlert": 200.0
+            }
+        },
+        {
+            "task_id": "task-203",
+            "frequency": 15.0,
+            "agents": [
+                "bob", "charlie"
+            ],
+            "command": {
+                "type": "iperf",
+                "targets": ["192.168.1.10", "192.168.1.20"],
+                "transport": "tcp",
+                "bytes": 20000,
+                "jitterAlert": 15.0,
+                "lossAlert": 5.0,
+                "bandwidthAlert": 150.0
+            }
+        },
+        {
+            "task_id": "task-204",
+            "frequency": "daemon",
+            "agents": [
+                "diana", "eva" ,"charlie"
+            ],
+            "command": {
+                "type": "ip",
+                "targets": ["eth0", "wlan0"],
+                "alertDown": true
+            }
+        },
+        {
+            "task_id": "task-205",
+            "frequency": 30.0,
+            "agents": [
+                "eva" ,"diana" , "bob"
+            ],
+            "command": {
+                "type": "system-monitor",
+                "targets": ["cpu", "memory", "disk"],
+                "cpuAlert": 85,
+                "memoryAlert": 75,
+                "diskAlert": 90
+            }
+        },
+        {
+            "task_id": "task-206",
+            "frequency": 10.0,
+            "agents": [
+                "frank"
+            ],
+            "command": {
+                "type": "iperf",
+                "targets": ["172.16.0.1", "172.16.0.2"],
+                "transport": "udp",
+                "bytes": 5000,
+                "jitterAlert": 5.0,
+                "lossAlert": 2.0,
+                "bandwidthAlert": 50.0
+            }
+        },
+        {
+            "task_id": "task-207",
+            "frequency": 25.0,
+            "agents": [
+                "george" ,"frank" ,"alice" ,"bob"
+            ],
+            "command": {
+                "type": "ping",
+                "targets": ["8.8.8.8", "8.8.4.4"],
+                "count": 10,
+                "rttAlert": 100.0
+            }
+        }
+    ]
+}
