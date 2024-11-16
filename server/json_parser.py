@@ -1,12 +1,14 @@
 import json
+from typing import Optional, Union
 
 from common.structs.Command import PingCommand, IPerfCommand, IPCommand, SystemMonitorCommand, CommandType, TransportProtocol
 from common.structs.MessageTask import MessageTask
 
 class parser:
-    def parse_json():
+    def parse_json(self) -> Optional[dict[str, list[MessageTask]]]:
         file_path = 'tasks.json'
-        targets_tasks = {}
+
+        targets_tasks: dict[str, list[MessageTask]] = {}
         data = None
         try:
             with open(file_path, 'r') as file:
@@ -15,6 +17,8 @@ class parser:
                 for task in data["tasks"]:
                     command_data = task["command"]
                     command_type = command_data["type"]
+
+                    command: Union[PingCommand, IPerfCommand, IPCommand, SystemMonitorCommand]
                     
                     if command_type == "ping":
                         command = PingCommand(
