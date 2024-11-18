@@ -1,8 +1,9 @@
+import sys
 import common
 from server.json_parser import Parser
 
 
-def main() -> None:
+def main(path: str) -> None:
     """
     Main function to process tasks and display them by device ID.
     """
@@ -10,17 +11,18 @@ def main() -> None:
 
     json_parser = Parser()
 
-    data = json_parser.parse_json()
+    data = json_parser.parse_json(path)
 
     if data is None:
         print("Error parsing JSON file")
-        return
-
-    for device_id, tasks in data.items():
-        print(f"Device ID: {device_id}")
-        for task in tasks:
-            print(f"  Task ID: {task.task_id}, Frequency: {task.frequency}")
-
+        return None
+    return None
 
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) != 2:
+        print("Usage: python -m server <file_path>")
+        sys.exit(1)
+
+    input_file = sys.argv[1]
+    print(f"Processing tasks from file: {input_file}")
+    main(input_file)

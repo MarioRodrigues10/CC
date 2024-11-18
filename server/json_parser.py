@@ -7,11 +7,11 @@ from common.structs.MessageTask import MessageTask
 
 
 class Parser:
-    def parse_json(self) -> Optional[dict[str, list[MessageTask]]]:
+    def parse_json(self, file_path:str) -> Optional[dict[str, list[MessageTask]]]:
         """
         Parses a JSON file to return a dictionary mapping device IDs to lists of MessageTask.
         """
-        file_path = "tasks.json"
+
 
         targets_tasks: dict[str, list[MessageTask]] = {}
         try:
