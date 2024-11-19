@@ -9,7 +9,7 @@ class SystemMonitorCommand(Command):
         self.cpu_alert = cpu_alert
         self.memory_alert = memory_alert
 
-    def serialize(self) -> bytes:
+    def _command_serialize(self) -> bytes:
         targets_bytes = b'\0'.join([target.encode('utf-8') for target in self.targets])
         cpu_alert_bytes = struct.pack('>d', self.cpu_alert)
         memory_alert_bytes = struct.pack('>d', self.memory_alert)

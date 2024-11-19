@@ -1,29 +1,27 @@
 import struct
-from enum import Enum
-from typing import Any
 
-from common.structs.PingCommand import PingCommand
-from common.structs.IPerfCommand import IPerfCommand
-from common.structs.IPCommand import IPCommand
-from common.structs.SystemMonitorCommand import SystemMonitorCommand
+from abc import ABC, abstractmethod
+from typing import Self, cast
 
-class CommandType(Enum):
-    PING = 1
-    IPERF = 2
-    IP = 3
-    SYSTEM_MONITOR = 4
+class Command(ABC):
+    @abstractmethod
+    def _command_serialize(self) -> bytes:
+        pass
 
-class Command:
+    def serialize(self) -> bytes:
+        for i, command_class in enumerate(Command.__subclasses__()):
+            if isinstance(self, command_class):
+                command_type_bytes = i.to_bytes(1, 'big')
+                command_contents_bytes = self._command_serialize()
+
+                return command_type_bytes + command_contents_bytes
+
+        # unreachable
+        return b''
+
+    @abstractmethod
     @classmethod
-    def deserialize(cls: Any, data: bytes) -> Any:
-        command_type = CommandType(int.from_bytes(data[:1], 'big'))
-        if command_type == CommandType.PING:
-            return PingCommand.deserialize(data[1:])
-        elif command_type == CommandType.IPERF:
-            return IPerfCommand.deserialize(data[1:])
-        elif command_type == CommandType.IP:
-            return IPCommand.deserialize(data[1:])
-        elif command_type == CommandType.SYSTEM_MONITOR:
-            return SystemMonitorCommand.deserialize(data[1:])
-        else:
-            raise ValueError('Unknown command type')
+    def deserialize(cls, data: bytes) -> Self:
+        command_type = int.from_bytes(data[:1], 'big')
+        command_class = cast(Self, Command.__subclasses__()[command_type])
+        return command_class.deserialize(data[1:])

@@ -8,7 +8,7 @@ class IPCommand(Command):
         self.targets = targets
         self.alert_down = alert_down
 
-    def serialize(self) -> bytes:
+    def _command_serialize(self) -> bytes:
         targets_bytes = b'\0'.join([target.encode('utf-8') for target in self.targets])
         alert_down_bytes = struct.pack('>d', self.alert_down)
         return b''.join([alert_down_bytes, targets_bytes])

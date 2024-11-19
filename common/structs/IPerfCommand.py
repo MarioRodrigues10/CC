@@ -18,7 +18,7 @@ class IPerfCommand(Command):
         self.loss_alert = loss_alert
         self.bandwidth_alert = bandwidth_alert
 
-    def serialize(self) -> bytes:
+    def _command_serialize(self) -> bytes:
         targets_bytes = b'\0'.join([target.encode('utf-8') for target in self.targets])
         transport_bytes = self.transport.value.to_bytes(1, byteorder='big')
         bytes_bytes = self.received_bytes.to_bytes(8, 'big')
