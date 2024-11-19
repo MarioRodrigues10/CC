@@ -14,6 +14,9 @@
 *.egg-info/
 build/
 dist/
+bin/
+common/__pycache__/
+lib/
 
 # mypy
 .mypy_cache/
