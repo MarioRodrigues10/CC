@@ -1,6 +1,6 @@
 from typing import Any, Self
 
-from .Message import Message
+from .Message import Message, SerializationException
 
 class MessagePrepare(Message):
     def __init__(self, iperf_tcp: bool, iperf_udp: bool):
@@ -13,6 +13,9 @@ class MessagePrepare(Message):
 
     @classmethod
     def deserialize(cls, data: bytes) -> Self:
+        if len(data) != 1:
+            raise SerializationException('Incorrect MessagePrepare length')
+
         integer = int.from_bytes(data, 'big')
         iperf_tcp = bool(integer & 1)
         iperf_udp = bool(integer & 2)

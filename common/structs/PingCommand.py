@@ -1,7 +1,8 @@
 import struct
 from typing import Any, Self
 
-from common.structs.Command import Command
+from .Command import Command
+from .Message import SerializationException
 
 class PingCommand(Command):
     def __init__(self, targets: list[str], count: int, rtt_alert: float):
@@ -18,9 +19,15 @@ class PingCommand(Command):
 
     @classmethod
     def deserialize(cls, data: bytes) -> Self:
-        count = int.from_bytes(data[:2], 'big')
-        rtt_alert = struct.unpack('>f', data[2:6])[0]
-        targets = [target.decode('utf-8') for target in data[6:].split(b'\0')]
+        if len(data) <= 6:
+            raise SerializationException('Incomplete PingCommand')
+
+        try:
+            count = int.from_bytes(data[:2], 'big')
+            rtt_alert = struct.unpack('>f', data[2:6])[0]
+            targets = [target.decode('utf-8') for target in data[6:].split(b'\0')]
+        except (struct.error, UnicodeDecodeError) as e:
+            raise SerializationException() from e
 
         return cls(targets, count, rtt_alert)
 

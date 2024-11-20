@@ -1,8 +1,9 @@
-from enum import Enum
 import struct
+from enum import Enum
 from typing import Any, Self
 
-from common.structs.Command import Command
+from .Command import Command
+from .Message import SerializationException
 
 class TransportProtocol(Enum):
     TCP = 0
@@ -32,12 +33,18 @@ class IPerfCommand(Command):
 
     @classmethod
     def deserialize(cls, data: bytes) -> Self:
-        transport = TransportProtocol(int.from_bytes(data[:1], 'big'))
-        time = struct.unpack('>f', data[1:5])[0]
-        jitter_alert = struct.unpack('>f', data[5:9])[0]
-        loss_alert = struct.unpack('>f', data[9:13])[0]
-        bandwidth_alert = struct.unpack('>f', data[13:17])[0]
-        targets = [target.decode('utf-8') for target in data[17:].split(b'\0')]
+        if len(data) <= 17:
+            raise SerializationException('Incomplete IPerfCommand command')
+
+        try:
+            transport = TransportProtocol(int.from_bytes(data[:1], 'big'))
+            time = struct.unpack('>f', data[1:5])[0]
+            jitter_alert = struct.unpack('>f', data[5:9])[0]
+            loss_alert = struct.unpack('>f', data[9:13])[0]
+            bandwidth_alert = struct.unpack('>f', data[13:17])[0]
+            targets = [target.decode('utf-8') for target in data[17:].split(b'\0')]
+        except (ValueError, struct.error, UnicodeDecodeError) as e:
+            raise SerializationException() from e
 
         return cls(targets, transport, time, jitter_alert, loss_alert, bandwidth_alert)
 

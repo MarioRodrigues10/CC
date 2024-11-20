@@ -1,7 +1,7 @@
 import struct
 from typing import Any, Self
 
-from .Message import Message
+from .Message import Message, SerializationException
 
 class PingOutput(Message):
     def __init__(self, target: str, avg_latency: float, stdev_latency: float):
@@ -18,9 +18,15 @@ class PingOutput(Message):
 
     @classmethod
     def deserialize(cls, data: bytes) -> Self:
-        avg_latency = struct.unpack('>f', data[:4])[0]
-        stdev_latency = struct.unpack('>f', data[4:8])[0]
-        target = data[8:].decode('utf-8')
+        if len(data) <= 8:
+            raise SerializationException('Incomplete PingOutput message')
+
+        try:
+            avg_latency = struct.unpack('>f', data[:4])[0]
+            stdev_latency = struct.unpack('>f', data[4:8])[0]
+            target = data[8:].decode('utf-8')
+        except (struct.error, UnicodeDecodeError) as e:
+            raise SerializationException() from e
 
         return cls(target, avg_latency, stdev_latency)
 

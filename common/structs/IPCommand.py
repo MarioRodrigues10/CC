@@ -1,7 +1,7 @@
-import struct
 from typing import Any, Self
 
-from common.structs.Command import Command
+from .Command import Command
+from .Message import SerializationException
 
 class IPCommand(Command):
     def __init__(self, targets: list[str], alert_down: bool):
@@ -16,8 +16,14 @@ class IPCommand(Command):
 
     @classmethod
     def deserialize(cls, data: bytes) -> Self:
-        alert_down = bool(int.from_bytes(data[:1], 'big'))
-        targets = [target.decode('utf-8') for target in data[1:].split(b'\0')]
+        if len(data) <= 1:
+            raise SerializationException('Incomplete IPCommand')
+
+        try:
+            alert_down = bool(int.from_bytes(data[:1], 'big'))
+            targets = [target.decode('utf-8') for target in data[1:].split(b'\0')]
+        except UnicodeDecodeError as e:
+            raise SerializationException() from e
 
         return cls(targets, alert_down)
 

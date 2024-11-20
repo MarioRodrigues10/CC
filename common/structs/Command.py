@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Self, cast
 
+from .Message import SerializationException
+
 class Command(ABC):
     @abstractmethod
     def _command_serialize(self) -> bytes:
@@ -14,12 +16,17 @@ class Command(ABC):
 
                 return command_type_bytes + command_contents_bytes
 
-        # unreachable
-        return b''
+        raise SerializationException('Unknown command type')
 
     @classmethod
     @abstractmethod
     def deserialize(cls, data: bytes) -> Self:
-        command_type = int.from_bytes(data[:1], 'big')
-        command_class = cast(Self, Command.__subclasses__()[command_type])
-        return command_class.deserialize(data[1:])
+        if len(data) <= 1:
+            raise SerializationException('Incomplete command')
+
+        try:
+            command_type = int.from_bytes(data[:1], 'big')
+            command_class = cast(Self, Command.__subclasses__()[command_type])
+            return command_class.deserialize(data[1:])
+        except IndexError as e:
+            raise SerializationException('Unknown command type') from e

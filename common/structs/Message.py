@@ -1,6 +1,9 @@
 from abc import ABC, abstractmethod
 from typing import Self, cast
 
+class SerializationException(Exception):
+    pass
+
 class Message(ABC):
     @abstractmethod
     def _message_serialize(self) -> bytes:
@@ -14,12 +17,17 @@ class Message(ABC):
 
                 return command_type_bytes + command_contents_bytes
 
-        # unreachable
-        return b''
+        raise SerializationException('Unknown message type')
 
     @classmethod
     @abstractmethod
     def deserialize(cls, data: bytes) -> Self:
-        message_type = int.from_bytes(data[:1], 'big')
-        message_class = cast(type[Self], Message.__subclasses__()[message_type])
-        return message_class.deserialize(data[1:])
+        if len(data) <= 1:
+            raise SerializationException('Incomplete message')
+
+        try:
+            message_type = int.from_bytes(data[:1], 'big')
+            message_class = cast(type[Self], Message.__subclasses__()[message_type])
+            return message_class.deserialize(data[1:])
+        except IndexError as e:
+            raise SerializationException('Unknown message type') from e

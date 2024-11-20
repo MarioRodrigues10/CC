@@ -1,6 +1,6 @@
 from typing import Any, Self
 
-from .Message import Message
+from .Message import Message, SerializationException
 
 class MessageRegister(Message):
     def __init__(self, host_id: str):
@@ -12,7 +12,14 @@ class MessageRegister(Message):
 
     @classmethod
     def deserialize(cls, data: bytes) -> Self:
-        host_id = data.decode('utf-8')
+        if len(data) == 0:
+            raise SerializationException('Incomplete MessagePrepare')
+
+        try:
+            host_id = data.decode('utf-8')
+        except UnicodeDecodeError as e:
+            raise SerializationException() from e
+
         return cls(host_id)
 
     def __eq__(self, other: Any) -> bool:

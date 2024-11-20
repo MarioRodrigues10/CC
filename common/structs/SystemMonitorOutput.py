@@ -1,7 +1,7 @@
 import struct
 from typing import Any, Self
 
-from .Message import Message
+from .Message import Message, SerializationException
 
 class SystemMonitorOutput(Message):
     def __init__(self, cpu: float, memory: float):
@@ -16,8 +16,14 @@ class SystemMonitorOutput(Message):
 
     @classmethod
     def deserialize(cls, data: bytes) -> Self:
-        cpu = struct.unpack('>f', data[:4])[0]
-        memory = struct.unpack('>f', data[4:8])[0]
+        if len(data) != 8:
+            raise SerializationException('Incorrect SystemMonitorOutput message length')
+
+        try:
+            cpu = struct.unpack('>f', data[:4])[0]
+            memory = struct.unpack('>f', data[4:8])[0]
+        except struct.error as e:
+            raise SerializationException() from e
 
         return cls(cpu, memory)
 

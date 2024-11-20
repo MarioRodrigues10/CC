@@ -1,6 +1,6 @@
 from typing import Any, Self
 
-from .Message import Message
+from .Message import Message, SerializationException
 
 class IPOutput(Message):
     def __init__(self, interface_name: str, connectivity: bool, tx_bytes: int,
@@ -25,12 +25,18 @@ class IPOutput(Message):
 
     @classmethod
     def deserialize(cls, data: bytes) -> Self:
-        tx_bytes = int.from_bytes(data[:8], 'big')
-        tx_packets = int.from_bytes(data[8:16], 'big')
-        rx_bytes = int.from_bytes(data[16:24], 'big')
-        rx_packets = int.from_bytes(data[24:32], 'big')
-        connectivity = bool(int.from_bytes(data[32:33], 'big'))
-        interface_name = data[33:].decode('utf-8')
+        if len(data) <= 33:
+            raise SerializationException('Incomplete IPOutput message')
+
+        try:
+            tx_bytes = int.from_bytes(data[:8], 'big')
+            tx_packets = int.from_bytes(data[8:16], 'big')
+            rx_bytes = int.from_bytes(data[16:24], 'big')
+            rx_packets = int.from_bytes(data[24:32], 'big')
+            connectivity = bool(int.from_bytes(data[32:33], 'big'))
+            interface_name = data[33:].decode('utf-8')
+        except UnicodeDecodeError as e:
+            raise SerializationException() from e
 
         return cls(interface_name, connectivity, tx_bytes, tx_packets, rx_bytes, rx_packets)
 

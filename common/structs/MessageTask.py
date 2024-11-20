@@ -1,7 +1,7 @@
 import struct
 from typing import Any, Self
 
-from .Message import Message
+from .Message import Message, SerializationException
 from .Command import Command
 
 class MessageTask(Message):
@@ -19,10 +19,16 @@ class MessageTask(Message):
 
     @classmethod
     def deserialize(cls, data: bytes) -> Self:
-        frequency = struct.unpack('>f', data[:4])[0]
-        limit = data.index(b'\0', 4)
-        task_id = data[4:limit].decode('utf-8')
-        command = Command.deserialize(data[limit + 1:])
+        if len(data) <= 5:
+            raise SerializationException('Incomplete MessageTask')
+
+        try:
+            frequency = struct.unpack('>f', data[:4])[0]
+            limit = data.index(b'\0', 4)
+            task_id = data[4:limit].decode('utf-8')
+            command = Command.deserialize(data[limit + 1:])
+        except (struct.error, ValueError, UnicodeDecodeError) as e:
+            raise SerializationException() from e
 
         return cls(task_id, frequency, command)
 

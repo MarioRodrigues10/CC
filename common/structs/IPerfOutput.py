@@ -1,7 +1,7 @@
 import struct
 from typing import Any, Self
 
-from .Message import Message
+from .Message import Message, SerializationException
 
 class IPerfOutput(Message):
     def __init__(self, target: str, jitter: float, bandwidth: float, loss: float):
@@ -20,10 +20,16 @@ class IPerfOutput(Message):
 
     @classmethod
     def deserialize(cls, data: bytes) -> Self:
-        jitter = struct.unpack('>f', data[:4])[0]
-        bandwidth = struct.unpack('>f', data[4:8])[0]
-        loss = struct.unpack('>f', data[8:12])[0]
-        target = data[12:].decode('utf-8')
+        if len(data) <= 12:
+            raise SerializationException('Incomplete IPerfOutput message')
+
+        try:
+            jitter = struct.unpack('>f', data[:4])[0]
+            bandwidth = struct.unpack('>f', data[4:8])[0]
+            loss = struct.unpack('>f', data[8:12])[0]
+            target = data[12:].decode('utf-8')
+        except (struct.error, UnicodeDecodeError) as e:
+            raise SerializationException() from e
 
         return cls(target, jitter, bandwidth, loss)
 

@@ -4,7 +4,7 @@ from .structs.IPerfCommand import IPerfCommand, TransportProtocol
 from .structs.PingCommand import PingCommand
 from .structs.SystemMonitorCommand import SystemMonitorCommand
 
-from .structs.Message import Message
+from .structs.Message import Message, SerializationException
 from .structs.IPOutput import IPOutput
 from .structs.IPerfOutput import IPerfOutput
 from .structs.PingOutput import PingOutput

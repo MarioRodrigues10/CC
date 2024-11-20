@@ -1,7 +1,8 @@
 import struct
 from typing import Any, Self
 
-from common.structs.Command import Command
+from .Command import Command
+from .Message import SerializationException
 
 class SystemMonitorCommand(Command):
     def __init__(self, cpu_alert: float, memory_alert: float):
@@ -16,8 +17,14 @@ class SystemMonitorCommand(Command):
 
     @classmethod
     def deserialize(cls, data: bytes) -> Self:
-        cpu_alert = struct.unpack('>f', data[:4])[0]
-        memory_alert = struct.unpack('>f', data[4:8])[0]
+        if len(data) != 8:
+            raise SerializationException('Incorrect SystemMonitorCommand length')
+
+        try:
+            cpu_alert = struct.unpack('>f', data[:4])[0]
+            memory_alert = struct.unpack('>f', data[4:8])[0]
+        except struct.error as e:
+            raise SerializationException() from e
 
         return cls(cpu_alert, memory_alert)
 
