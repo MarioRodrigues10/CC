@@ -1,14 +1,25 @@
-from typing import Any
+from typing import Any, Self
 
-class MessageRegister:
-    def __init__(self, message_id: str):
-        self.message_id = message_id
+from .Message import Message
 
-    def serialize(self) -> bytes:
-        id_bytes = self.message_id.encode('utf-8')
+class MessageRegister(Message):
+    def __init__(self, host_id: str):
+        self.host_id = host_id
+
+    def _message_serialize(self) -> bytes:
+        id_bytes = self.host_id.encode('utf-8')
         return id_bytes
 
-    def deserialize(self, cls: Any, data: bytes) -> 'MessageRegister':
-        message_id = data.decode('utf-8')
+    @classmethod
+    def deserialize(cls, data: bytes) -> Self:
+        host_id = data.decode('utf-8')
+        return cls(host_id)
 
-        return cls(message_id=message_id)
+    def __eq__(self, other: Any) -> bool:
+        if isinstance(other, MessageRegister):
+            return self.host_id == other.host_id
+
+        return False
+
+    def __str__(self) -> str:
+        return f'MessageRegister(host_id={self.host_id})'
