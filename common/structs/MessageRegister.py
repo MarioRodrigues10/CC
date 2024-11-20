@@ -28,5 +28,5 @@ class MessageRegister(Message):
 
         return False
 
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         return f'MessageRegister(host_id={self.host_id})'

@@ -43,7 +43,7 @@ class IPerfOutput(Message):
 
         return False
 
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         return 'IPerfOutput(' \
             f'target={self.target}, ' \
             f'jitter={self.jitter}, ' \

@@ -40,7 +40,7 @@ class PingCommand(Command):
 
         return False
 
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         return 'PingCommand(' \
             f'targets={self.targets}, ' \
             f'count={self.count}, ' \

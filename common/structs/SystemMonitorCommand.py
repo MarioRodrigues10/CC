@@ -36,7 +36,7 @@ class SystemMonitorCommand(Command):
 
         return False
 
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         return 'SystemMonitorCommand(' \
             f'cpu_alert={self.cpu_alert}, ' \
             f'memory_alert={self.memory_alert})'

@@ -41,7 +41,7 @@ class MessageTask(Message):
 
         return False
 
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         return 'MessageTask(' \
             f'task_id={self.task_id}, ' \
             f'frequency={self.frequency}, ' \

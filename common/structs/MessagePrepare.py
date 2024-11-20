@@ -30,7 +30,7 @@ class MessagePrepare(Message):
 
         return False
 
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         return 'MessagePrepare(' \
             f'iperf_tcp={self.iperf_tcp}, ' \
             f'iperf_udp={self.iperf_udp})'

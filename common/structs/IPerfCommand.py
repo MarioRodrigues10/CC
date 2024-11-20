@@ -60,7 +60,7 @@ class IPerfCommand(Command):
 
         return False
 
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         return 'IPerfCommand(' \
             f'targets={self.targets}, ' \
             f'transport={self.transport}, ' \

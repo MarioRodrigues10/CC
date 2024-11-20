@@ -35,7 +35,7 @@ class SystemMonitorOutput(Message):
 
         return False
 
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         return 'SystemMonitorCommandOutput(' \
             f'cpu={self.cpu}, ' \
             f'memory={self.memory})'

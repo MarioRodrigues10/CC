@@ -39,7 +39,7 @@ class PingOutput(Message):
 
         return False
 
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         return 'PingOutput(' \
             f'target={self.target}, ' \
             f'avg_latency={self.avg_latency}, ' \

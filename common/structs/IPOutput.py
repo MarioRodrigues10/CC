@@ -52,7 +52,7 @@ class IPOutput(Message):
 
         return False
 
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         return 'IPOutput(' \
             f'interface_name={self.interface_name}, ' \
             f'connectivity={self.connectivity}, ' \
