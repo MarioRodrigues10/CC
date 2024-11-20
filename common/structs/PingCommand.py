@@ -16,7 +16,7 @@ class PingCommand(Command):
         return b''.join([count_bytes, rtt_alert_bytes, targets_bytes])
 
     @classmethod
-    def _command_deserialize(cls, data: bytes) -> Self:
+    def deserialize(cls, data: bytes) -> Self:
         count = int.from_bytes(data[:8], 'big')
         rtt_alert = struct.unpack('>d', data[8:16])[0]
         targets = [target.decode('utf-8') for target in data[16:].split(b'\0')]

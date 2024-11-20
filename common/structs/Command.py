@@ -19,8 +19,8 @@ class Command(ABC):
         # unreachable
         return b''
 
-    @abstractmethod
     @classmethod
+    @abstractmethod
     def deserialize(cls, data: bytes) -> Self:
         command_type = int.from_bytes(data[:1], 'big')
         command_class = cast(Self, Command.__subclasses__()[command_type])
