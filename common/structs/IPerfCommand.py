@@ -1,6 +1,6 @@
 from enum import Enum
 import struct
-from typing import Self
+from typing import Any, Self
 
 from common.structs.Command import Command
 
@@ -41,3 +41,24 @@ class IPerfCommand(Command):
         return cls(targets=targets, transport=transport,
                    received_bytes=bytes_val, jitter_alert=jitter_alert,
                     loss_alert=loss_alert, bandwidth_alert=bandwidth_alert)
+
+    def __eq__(self, other: Any) -> bool:
+        if isinstance(other, IPerfCommand):
+            return \
+                self.targets == other.targets and \
+                self.transport == other.transport and \
+                self.received_bytes == other.received_bytes and \
+                self.jitter_alert == other.jitter_alert and \
+                self.loss_alert == other.loss_alert and \
+                self.bandwidth_alert == other.bandwidth_alert
+
+        return False
+
+    def __str__(self) -> str:
+        return 'IPerfCommand(' \
+            f'targets={self.targets}, ' \
+            f'transport={self.transport}, ' \
+            f'received_bytes={self.received_bytes}, ' \
+            f'jitter_alert={self.jitter_alert}, ' \
+            f'loss_alert={self.loss_alert}, ' \
+            f'bandwidth_alert={self.bandwidth_alert})'

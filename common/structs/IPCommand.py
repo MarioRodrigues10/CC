@@ -1,5 +1,5 @@
 import struct
-from typing import Self
+from typing import Any, Self
 
 from common.structs.Command import Command
 
@@ -18,3 +18,16 @@ class IPCommand(Command):
         alert_down = struct.unpack('>d', data[:1])[0]
         targets = [target.decode('utf-8') for target in data[1:].split(b'\0')]
         return cls(targets=targets, alert_down=alert_down)
+
+    def __eq__(self, other: Any) -> bool:
+        if isinstance(other, IPCommand):
+            return \
+                self.targets == other.targets and \
+                self.alert_down == other.alert_down
+
+        return False
+
+    def __str__(self) -> str:
+        return 'SystemMonitorCommand(' \
+            f'targets={self.targets}, ' \
+            f'alert_down={self.alert_down})'

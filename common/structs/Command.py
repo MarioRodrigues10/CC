@@ -1,5 +1,3 @@
-import struct
-
 from abc import ABC, abstractmethod
 from typing import Self, cast
 

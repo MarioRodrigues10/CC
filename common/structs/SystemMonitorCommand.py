@@ -1,5 +1,5 @@
 import struct
-from typing import Self
+from typing import Any, Self
 
 from common.structs.Command import Command
 
@@ -23,3 +23,18 @@ class SystemMonitorCommand(Command):
         targets = [target.decode('utf-8') for target in data[16:].split(b'\0')]
 
         return cls(targets=targets, cpu_alert=cpu_alert, memory_alert=memory_alert)
+
+    def __eq__(self, other: Any) -> bool:
+        if isinstance(other, SystemMonitorCommand):
+            return \
+                self.targets == other.targets and \
+                self.cpu_alert == other.cpu_alert and \
+                self.memory_alert == other.memory_alert
+
+        return False
+
+    def __str__(self) -> str:
+        return 'SystemMonitorCommand(' \
+            f'targets={self.targets}, ' \
+            f'cpu_alert={self.cpu_alert}, ' \
+            f'memory_alert={self.memory_alert})'
