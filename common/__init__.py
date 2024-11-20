@@ -1,4 +1,5 @@
-# This file is needed for the CC package to work.
-
-SERVER_MESSAGE = 'Hello from the server'
-AGENT_MESSAGE = 'Hello from the agent'
+from .structs.Command import Command
+from .structs.IPCommand import IPCommand
+from .structs.IPerfCommand import IPerfCommand, TransportProtocol
+from .structs.PingCommand import PingCommand
+from .structs.SystemMonitorCommand import SystemMonitorCommand
