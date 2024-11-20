@@ -6,7 +6,6 @@ class Message(ABC):
     def _message_serialize(self) -> bytes:
         pass
 
-    @abstractmethod
     def serialize(self) -> bytes:
         for i, message_class in enumerate(Message.__subclasses__()):
             if isinstance(self, message_class):

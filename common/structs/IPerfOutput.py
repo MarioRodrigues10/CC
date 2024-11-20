@@ -16,7 +16,7 @@ class IPerfOutput(Message):
         bandwidth_bytes = struct.pack('>f', self.bandwidth)
         loss_bytes = struct.pack('>f', self.loss)
 
-        return b''.join([target_bytes, jitter_bytes, bandwidth_bytes, loss_bytes])
+        return b''.join([jitter_bytes, bandwidth_bytes, loss_bytes, target_bytes])
 
     @classmethod
     def deserialize(cls, data: bytes) -> Self:

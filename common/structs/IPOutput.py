@@ -12,7 +12,7 @@ class IPOutput(Message):
         self.rx_bytes = rx_bytes
         self.rx_packets = rx_packets
 
-    def serialize(self) -> bytes:
+    def _message_serialize(self) -> bytes:
         interface_name_bytes = self.interface_name.encode('utf-8')
         connectivity_bytes = int(self.connectivity).to_bytes(1, 'big')
         tx_bytes_bytes = self.tx_bytes.to_bytes(8, 'big')

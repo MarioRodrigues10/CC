@@ -18,8 +18,8 @@ class PingOutput(Message):
 
     @classmethod
     def deserialize(cls, data: bytes) -> Self:
-        avg_latency = struct.unpack('>d', data[:4])[0]
-        stdev_latency = struct.unpack('>d', data[4:8])[0]
+        avg_latency = struct.unpack('>f', data[:4])[0]
+        stdev_latency = struct.unpack('>f', data[4:8])[0]
         target = data[8:].decode('utf-8')
 
         return cls(target, avg_latency, stdev_latency)
