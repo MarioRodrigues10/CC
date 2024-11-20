@@ -2,86 +2,108 @@
     "tasks": [
         {
             "task_id": "task-202",
-            "frequency": 20.0,
+            "frequency": 20,
             "agents": [
-                "manuel", "alice" ,"bob"
+                "manuel",
+                "alice",
+                "bob"
             ],
             "command": {
                 "type": "ping",
-                "targets": ["10.0.0.1", "10.0.0.2", "10.0.0.3"],
+                "targets": [
+                    "1.1.1.1"
+                ],
                 "count": 5,
-                "rttAlert": 200.0
+                "rttAlert": 200
             }
         },
         {
             "task_id": "task-203",
-            "frequency": 15.0,
+            "frequency": 15,
             "agents": [
-                "bob", "charlie"
+                "bob",
+                "charlie"
             ],
             "command": {
                 "type": "iperf",
-                "targets": ["192.168.1.10", "192.168.1.20"],
+                "targets": [
+                    "192.168.1.10",
+                    "192.168.1.20"
+                ],
                 "transport": "tcp",
-                "bytes": 20000,
-                "jitterAlert": 15.0,
-                "lossAlert": 5.0,
-                "bandwidthAlert": 150.0
+                "time": 10,
+                "jitterAlert": 15,
+                "lossAlert": 5,
+                "bandwidthAlert": 150
             }
         },
         {
             "task_id": "task-204",
-            "frequency": "daemon",
+            "frequency": 1,
             "agents": [
-                "diana", "eva" ,"charlie"
+                "diana",
+                "eva",
+                "charlie"
             ],
             "command": {
                 "type": "ip",
-                "targets": ["eth0", "wlan0"],
+                "targets": [
+                    "eth0",
+                    "wlan0"
+                ],
                 "alertDown": true
             }
         },
         {
             "task_id": "task-205",
-            "frequency": 30.0,
+            "frequency": 30,
             "agents": [
-                "eva" ,"diana" , "bob"
+                "eva",
+                "diana",
+                "bob"
             ],
             "command": {
                 "type": "system-monitor",
-                "targets": ["cpu", "memory", "disk"],
                 "cpuAlert": 85,
-                "memoryAlert": 75,
-                "diskAlert": 90
+                "memoryAlert": 75
             }
         },
         {
             "task_id": "task-206",
-            "frequency": 10.0,
+            "frequency": 10,
             "agents": [
                 "frank"
             ],
             "command": {
                 "type": "iperf",
-                "targets": ["172.16.0.1", "172.16.0.2"],
+                "targets": [
+                    "172.16.0.1",
+                    "172.16.0.2"
+                ],
                 "transport": "udp",
-                "bytes": 5000,
-                "jitterAlert": 5.0,
-                "lossAlert": 2.0,
-                "bandwidthAlert": 50.0
+                "time": 5,
+                "jitterAlert": 5,
+                "lossAlert": 2,
+                "bandwidthAlert": 50
             }
         },
         {
             "task_id": "task-207",
-            "frequency": 25.0,
+            "frequency": 25,
             "agents": [
-                "george" ,"frank" ,"alice" ,"bob"
+                "george",
+                "frank",
+                "alice",
+                "bob"
             ],
             "command": {
                 "type": "ping",
-                "targets": ["8.8.8.8", "8.8.4.4"],
+                "targets": [
+                    "8.8.8.8",
+                    "8.8.4.4"
+                ],
                 "count": 10,
-                "rttAlert": 100.0
+                "rttAlert": 100
             }
         }
     ]
