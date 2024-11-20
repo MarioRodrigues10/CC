@@ -10,18 +10,19 @@ class PingCommand(Command):
         self.rtt_alert = rtt_alert
 
     def _command_serialize(self) -> bytes:
-        count_bytes = self.count.to_bytes(8, 'big')
-        rtt_alert_bytes = struct.pack('>d', self.rtt_alert)
+        count_bytes = self.count.to_bytes(2, 'big')
+        rtt_alert_bytes = struct.pack('>f', self.rtt_alert)
         targets_bytes = b'\0'.join([target.encode('utf-8') for target in self.targets])
+
         return b''.join([count_bytes, rtt_alert_bytes, targets_bytes])
 
     @classmethod
     def deserialize(cls, data: bytes) -> Self:
-        count = int.from_bytes(data[:8], 'big')
-        rtt_alert = struct.unpack('>d', data[8:16])[0]
-        targets = [target.decode('utf-8') for target in data[16:].split(b'\0')]
+        count = int.from_bytes(data[:2], 'big')
+        rtt_alert = struct.unpack('>f', data[2:6])[0]
+        targets = [target.decode('utf-8') for target in data[6:].split(b'\0')]
 
-        return cls(targets=targets, count=count, rtt_alert=rtt_alert)
+        return cls(targets, count, rtt_alert)
 
     def __eq__(self, other: Any) -> bool:
         if isinstance(other, PingCommand):

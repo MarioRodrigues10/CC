@@ -9,15 +9,17 @@ class IPCommand(Command):
         self.alert_down = alert_down
 
     def _command_serialize(self) -> bytes:
+        alert_down_bytes = int(self.alert_down).to_bytes(1, 'big')
         targets_bytes = b'\0'.join([target.encode('utf-8') for target in self.targets])
-        alert_down_bytes = struct.pack('>d', self.alert_down)
+
         return b''.join([alert_down_bytes, targets_bytes])
 
     @classmethod
     def deserialize(cls, data: bytes) -> Self:
-        alert_down = struct.unpack('>d', data[:1])[0]
+        alert_down = bool(int.from_bytes(data[:1], 'big'))
         targets = [target.decode('utf-8') for target in data[1:].split(b'\0')]
-        return cls(targets=targets, alert_down=alert_down)
+
+        return cls(targets, alert_down)
 
     def __eq__(self, other: Any) -> bool:
         if isinstance(other, IPCommand):
