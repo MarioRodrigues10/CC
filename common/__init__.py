@@ -11,3 +11,4 @@ from .structs.PingOutput import PingOutput
 from .structs.SystemMonitorOutput import SystemMonitorOutput
 from .structs.MessagePrepare import MessagePrepare
 from .structs.MessageRegister import MessageRegister
+from .structs.MessageTask import MessageTask

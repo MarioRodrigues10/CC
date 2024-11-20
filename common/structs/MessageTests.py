@@ -1,7 +1,11 @@
 from unittest import TestCase, main
 
-from .. import \
-    Message, IPOutput, IPerfOutput, PingOutput, SystemMonitorOutput, MessagePrepare, MessageRegister
+from .. import (
+    Message,
+    IPOutput, IPerfOutput, PingOutput, SystemMonitorOutput,
+    MessagePrepare, MessageRegister, MessageTask,
+    PingCommand
+)
 
 class MessageTests(TestCase):
     # NOTE:
@@ -45,6 +49,13 @@ class MessageTests(TestCase):
 
     def test_message_register(self) -> None:
         initial_message = MessageRegister('myrouter')
+        message_bytes = initial_message.serialize()
+        final_message = Message.deserialize(message_bytes)
+
+        self.assertEqual(initial_message, final_message)
+
+    def test_message_tasks(self) -> None:
+        initial_message = MessageTask('task-01', 20.0, PingCommand(['8.8.8.8'], 10, 1000.0))
         message_bytes = initial_message.serialize()
         final_message = Message.deserialize(message_bytes)
 
