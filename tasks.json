@@ -2,7 +2,7 @@
     "tasks": [
         {
             "task_id": "task-202",
-            "frequency": 20,
+            "frequency": 20.0,
             "agents": [
                 "manuel",
                 "alice",
@@ -14,12 +14,12 @@
                     "1.1.1.1"
                 ],
                 "count": 5,
-                "rttAlert": 200
+                "rttAlert": 200.0
             }
         },
         {
             "task_id": "task-203",
-            "frequency": 15,
+            "frequency": 15.0,
             "agents": [
                 "bob",
                 "charlie"
@@ -31,15 +31,15 @@
                     "192.168.1.20"
                 ],
                 "transport": "tcp",
-                "time": 10,
-                "jitterAlert": 15,
-                "lossAlert": 5,
-                "bandwidthAlert": 150
+                "time": 10.0,
+                "jitterAlert": 15.0,
+                "lossAlert": 5.0,
+                "bandwidthAlert": 150.0
             }
         },
         {
             "task_id": "task-204",
-            "frequency": 1,
+            "frequency": 1.0,
             "agents": [
                 "diana",
                 "eva",
@@ -56,7 +56,7 @@
         },
         {
             "task_id": "task-205",
-            "frequency": 30,
+            "frequency": 30.0,
             "agents": [
                 "eva",
                 "diana",
@@ -64,13 +64,13 @@
             ],
             "command": {
                 "type": "system-monitor",
-                "cpuAlert": 85,
-                "memoryAlert": 75
+                "cpuAlert": 85.0,
+                "memoryAlert": 75.0
             }
         },
         {
             "task_id": "task-206",
-            "frequency": 10,
+            "frequency": 10.0,
             "agents": [
                 "frank"
             ],
@@ -81,15 +81,15 @@
                     "172.16.0.2"
                 ],
                 "transport": "udp",
-                "time": 5,
-                "jitterAlert": 5,
-                "lossAlert": 2,
-                "bandwidthAlert": 50
+                "time": 5.0,
+                "jitterAlert": 5.0,
+                "lossAlert": 2.0,
+                "bandwidthAlert": 50.0
             }
         },
         {
             "task_id": "task-207",
-            "frequency": 25,
+            "frequency": 25.0,
             "agents": [
                 "george",
                 "frank",
@@ -103,7 +103,7 @@
                     "8.8.4.4"
                 ],
                 "count": 10,
-                "rttAlert": 100
+                "rttAlert": 100.0
             }
         }
     ]
