@@ -10,6 +10,7 @@ class TransportProtocol(Enum):
     UDP = 1
 
 class IPerfCommand(Command):
+    # pylint: disable-next=too-many-arguments disable-next=too-many-positional-arguments
     def __init__(self, targets: list[str], transport: TransportProtocol, time: float,
                  jitter_alert: float, loss_alert: float, bandwidth_alert: float):
 

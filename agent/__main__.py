@@ -1,7 +1,5 @@
-import common
-
 def main() -> None:
-    print(common.AGENT_MESSAGE)
+    print('Hello, world!')
 
 if __name__ == '__main__':
     main()

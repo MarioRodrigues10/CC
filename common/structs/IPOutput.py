@@ -3,6 +3,7 @@ from typing import Any, Self
 from .Message import Message, SerializationException
 
 class IPOutput(Message):
+    # pylint: disable-next=too-many-arguments disable-next=too-many-positional-arguments
     def __init__(self, interface_name: str, connectivity: bool, tx_bytes: int,
                  tx_packets: int, rx_bytes: int, rx_packets: int):
         self.interface_name = interface_name

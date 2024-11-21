@@ -1,8 +1,14 @@
 import json
 from typing import Any
 
-from common import \
-    Command, PingCommand, IPerfCommand, IPCommand, SystemMonitorCommand, TransportProtocol, MessageTask
+from common import (
+    Command,
+    PingCommand,
+    IPerfCommand, TransportProtocol,
+    IPCommand,
+    SystemMonitorCommand,
+    MessageTask
+)
 
 class TasksParserException(Exception):
     pass
