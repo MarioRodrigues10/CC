@@ -1,14 +1,32 @@
-from typing import Any
+from typing import Any, Self
 
-class MessageRegister:
-    def __init__(self, message_id: str):
-        self.message_id = message_id
+from .Message import Message, SerializationException
 
-    def serialize(self) -> bytes:
-        id_bytes = self.message_id.encode('utf-8')
+class MessageRegister(Message):
+    def __init__(self, host_id: str):
+        self.host_id = host_id
+
+    def _message_serialize(self) -> bytes:
+        id_bytes = self.host_id.encode('utf-8')
         return id_bytes
 
-    def deserialize(self, cls: Any, data: bytes) -> 'MessageRegister':
-        message_id = data.decode('utf-8')
+    @classmethod
+    def deserialize(cls, data: bytes) -> Self:
+        if len(data) == 0:
+            raise SerializationException('Incomplete MessagePrepare')
 
-        return cls(message_id=message_id)
+        try:
+            host_id = data.decode('utf-8')
+        except UnicodeDecodeError as e:
+            raise SerializationException() from e
+
+        return cls(host_id)
+
+    def __eq__(self, other: Any) -> bool:
+        if isinstance(other, MessageRegister):
+            return self.host_id == other.host_id
+
+        return False
+
+    def __repr__(self) -> str:
+        return f'MessageRegister(host_id={self.host_id})'
