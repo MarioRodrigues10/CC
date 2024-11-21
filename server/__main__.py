@@ -4,6 +4,7 @@ from common.structs.AlertFlow import AlertFlowImpl, AlertFlow
 from common import SERVER_HOST, SERVER_PORT
 from .TasksParser import TasksParser
 
+from .TasksParser import TasksParser
 
 def main(argv: list[str]) -> None:
     if len(argv) != 2:
