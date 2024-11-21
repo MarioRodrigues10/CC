@@ -115,7 +115,6 @@ class TasksParser:
                     'command': dict
                 })
                 cls.__assert_list(task['agents'], str)
-                cls.__assert_type(task['command'], dict)
                 cls.__assert_condition('type' in task['command'])
 
                 command_data = task['command']
@@ -142,5 +141,5 @@ class TasksParser:
                     targets_tasks[device_id].append(message_task)
 
             return targets_tasks
-        except (FileNotFoundError, json.JSONDecodeError, KeyError) as e:
+        except (OSError, json.JSONDecodeError, KeyError) as e:
             raise TasksParserException() from e
