@@ -22,7 +22,7 @@ class Message(ABC):
     @classmethod
     @abstractmethod
     def deserialize(cls, data: bytes) -> Self:
-        if len(data) <= 1:
+        if len(data) == 0:
             raise SerializationException('Incomplete message')
 
         try:

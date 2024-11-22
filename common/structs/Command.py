@@ -1,9 +1,16 @@
 from abc import ABC, abstractmethod
-from typing import Self, cast
+from typing import Any, Self, cast
 
 from .Message import SerializationException
 
+class CommandException(Exception):
+    pass
+
 class Command(ABC):
+    @abstractmethod
+    def run(self) -> Any:
+        pass
+
     @abstractmethod
     def _command_serialize(self) -> bytes:
         pass

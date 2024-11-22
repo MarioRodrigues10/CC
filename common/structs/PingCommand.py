@@ -1,14 +1,47 @@
+import re
+import statistics
 import struct
+import subprocess
 from typing import Any, Self
 
-from .Command import Command
+from .Command import Command, CommandException
 from .Message import SerializationException
+from .PingOutput import PingOutput
+
+PING_MAXIMUM_TIME = 5 # seconds per ping
 
 class PingCommand(Command):
     def __init__(self, targets: list[str], count: int, rtt_alert: float):
         self.targets = targets
         self.count = count
         self.rtt_alert = rtt_alert
+
+    def run(self) -> dict[str, PingOutput]:
+        results = {}
+        for target in self.targets:
+            ping_deadline = PING_MAXIMUM_TIME * self.count
+            ping_command = ['ping', '-w', str(ping_deadline), '-Ac', str(self.count), target]
+
+            try:
+                process = subprocess.run(ping_command, capture_output=True, check=True)
+                stdout = process.stdout.decode('utf-8')
+            except (OSError, subprocess.SubprocessError) as e:
+                raise CommandException('ping exited with non-0 exit code!') from e
+            except UnicodeDecodeError as e:
+                raise CommandException() from e
+
+            time_matches = re.findall(r'time=([0-9]+(?:\.[0-9]+)?)', stdout)
+            time_values = [ float(groups) for groups in time_matches ]
+
+            try:
+                avg = statistics.mean(time_values)
+                stdev = statistics.stdev(time_values)
+            except statistics.StatisticsError as e:
+                raise CommandException('ping didn\'t received less than 2 replies!') from e
+
+            results[target] = PingOutput(target, avg, stdev)
+
+        return results
 
     def _command_serialize(self) -> bytes:
         count_bytes = self.count.to_bytes(2, 'big')

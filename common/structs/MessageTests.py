@@ -41,7 +41,7 @@ class MessageTests(TestCase):
         self.assertEqual(initial_message, final_message)
 
     def test_message_prepare(self) -> None:
-        initial_message = MessagePrepare(True, False)
+        initial_message = MessagePrepare()
         message_bytes = initial_message.serialize()
         final_message = Message.deserialize(message_bytes)
 
