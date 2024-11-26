@@ -1,8 +1,12 @@
+import json
+import math
 import struct
+import subprocess
 from enum import Enum
 from typing import Any, Self
 
-from .Command import Command
+from .Command import Command, CommandException
+from .IPerfOutput import IPerfOutput
 from .Message import SerializationException
 
 class TransportProtocol(Enum):
@@ -20,6 +24,37 @@ class IPerfCommand(Command):
         self.jitter_alert = jitter_alert
         self.loss_alert = loss_alert
         self.bandwidth_alert = bandwidth_alert
+
+    def run(self) -> dict[str, IPerfOutput]:
+        results = {}
+        for target in self.targets:
+            iperf_command = ['iperf3', '-c', target, '-t', str(self.time), '-J']
+            if self.transport == TransportProtocol.UDP:
+                iperf_command.insert(1, '-u')
+
+            try:
+                process = subprocess.run(iperf_command, capture_output=True, check=True)
+                stdout = json.loads(process.stdout.decode('utf-8'))
+            except (OSError, subprocess.SubprocessError) as e:
+                raise CommandException('ping exited with non-0 exit code!') from e
+            except (json.JSONDecodeError, UnicodeDecodeError) as e:
+                raise CommandException('Invalid iperf client output') from e
+
+            try:
+                iperf_results = stdout['end']['sum_received']
+
+                bandwidth = float(iperf_results['bits_per_second'])
+                jitter = math.nan
+                loss = math.nan
+                if self.transport == TransportProtocol.UDP:
+                    jitter = float(iperf_results['jitter_ms'])
+                    loss = float(iperf_results['lost_percent'])
+            except (KeyError, ValueError, TypeError) as e:
+                raise CommandException('Invalid iperf client output') from e
+
+            results[target] = IPerfOutput(target, jitter, bandwidth, loss)
+
+        return results
 
     def _command_serialize(self) -> bytes:
         targets_bytes = b'\0'.join([target.encode('utf-8') for target in self.targets])

@@ -1,4 +1,4 @@
-from .structs.Command import Command
+from .structs.Command import Command, CommandException
 from .structs.IPCommand import IPCommand
 from .structs.IPerfCommand import IPerfCommand, TransportProtocol
 from .structs.PingCommand import PingCommand
