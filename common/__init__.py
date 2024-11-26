@@ -12,3 +12,6 @@ from .structs.SystemMonitorOutput import SystemMonitorOutput
 from .structs.MessagePrepare import MessagePrepare
 from .structs.MessageRegister import MessageRegister
 from .structs.MessageTask import MessageTask
+
+SERVER_HOST = '127.0.0.1'
+SERVER_PORT = 65432
