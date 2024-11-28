@@ -1,0 +1,78 @@
+import socket
+import sys
+from threading import Condition, Thread
+from typing import Optional
+
+from .NetTaskConnection import NetTaskConnection
+from .structs.NetTaskSegment import NetTaskSegment
+from .structs.Message import SerializationException
+
+class NetTask:
+    def __init__(self, host: str, bind_port: Optional[int] = None):
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+        self.host = host
+        if bind_port is not None:
+            self.socket.bind(('0.0.0.0', bind_port))
+
+        self.condition = Condition()
+        self.management_thread = Thread(target = self.__management_loop)
+        self.management_thread.daemon = True
+        self.management_thread.start()
+
+        self.host_ips: dict[str, tuple[str, int]] = {}
+        self.ip_hosts: dict[tuple[str, int], str] = {}
+        self.connections: dict[str, NetTaskConnection] = {}
+
+    def __del__(self) -> None:
+        self.socket.close()
+
+    def __next_segment(self) -> tuple[NetTaskSegment, tuple[str, int]]:
+        while True:
+            segment_bytes, addr_port = self.socket.recvfrom(1 << 16)
+            try:
+                return (NetTaskSegment.deserialize(segment_bytes), addr_port)
+            except SerializationException:
+                print('NetTask ignored deserialization exception', file=sys.stderr)
+
+    def add_host(self, host: str, addr_port: tuple[str, int]) -> None:
+        with self.condition:
+            self.host_ips[host] = addr_port
+            self.ip_hosts[addr_port] = host
+
+            if host not in self.connections:
+                self.connections[host] = NetTaskConnection()
+
+    def __management_loop(self) -> None:
+        while True:
+            segment, addr_port = self.__next_segment()
+            with self.condition:
+                self.add_host(segment.host, addr_port)
+                connection = self.connections[segment.host]
+                connection.enqueue(segment)
+                self.condition.notify_all()
+
+    def receive(self) -> tuple[bytes, str]:
+        def get_receiving_host() -> Optional[str]:
+            for host, connection in self.connections.items():
+                if connection.can_receive():
+                    return host
+
+            return None
+
+        with self.condition:
+            while True:
+                host = get_receiving_host()
+                if host is not None:
+                    break
+
+                self.condition.wait()
+
+            return self.connections[host].receive(), host
+
+    def send(self, message: bytes, host: str) -> None:
+        with self.condition:
+            addr_port = self.host_ips[host]
+            connection = self.connections[host]
+
+            segment = connection.send(message, self.host)
+            self.socket.sendto(segment.serialize(), addr_port)

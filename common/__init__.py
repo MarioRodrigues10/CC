@@ -12,3 +12,5 @@ from .structs.SystemMonitorOutput import SystemMonitorOutput
 from .structs.MessagePrepare import MessagePrepare
 from .structs.MessageRegister import MessageRegister
 from .structs.MessageTask import MessageTask
+
+from .NetTask import NetTask
