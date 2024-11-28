@@ -2,6 +2,7 @@ import threading
 import time
 from readerwriterlock import rwlock
 
+
 from common import (
     IPerfCommand,
     MessageTask,
@@ -11,10 +12,10 @@ from .IPerfServer import IPerfServer
 
 
 class Orchestrator:
-    def __init__(self)-> None:
+    def __init__(self) -> None:
         self.lock = rwlock.RWLockFairD()
-        self.tasks : dict[str,MessageTask]= {} # type: ignore
-        self.threads : list[threading.Thread]=[]
+        self.tasks: dict[str, MessageTask] = {}
+        self.threads: list[threading.Thread] = []
 
     def add_task(self, message_task: MessageTask) -> None:
         with self.lock.gen_wlock():
