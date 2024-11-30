@@ -1,11 +1,14 @@
 import socket
 import sys
+import time
 from threading import Condition, Thread
 from typing import Optional
 
 from .NetTaskConnection import NetTaskConnectionException, NetTaskConnection
 from .structs.NetTaskSegment import NetTaskSegment
 from .structs.Message import SerializationException
+
+INITIAL_ACK_WAIT_TIMING = 5
 
 # pylint: disable-next=too-many-instance-attributes
 class NetTask:
@@ -61,8 +64,22 @@ class NetTask:
             del self.connections[host]
 
     def __management_loop(self) -> None:
+        self.socket.settimeout(INITIAL_ACK_WAIT_TIMING)
+
         while True:
-            segment, addr_port = self.__next_segment()
+            try:
+                segment, addr_port = self.__next_segment()
+            except TimeoutError:
+                with self.condition:
+                    # Retransmit ACKs
+                    for host, connection in self.connections.items():
+                        timeout_segment = connection.send_if_timed_out()
+                        if timeout_segment is not None:
+                            addr_port = self.host_ips[host]
+                            self.socket.sendto(timeout_segment.serialize(), addr_port)
+
+                continue
+
             with self.condition:
                 self.add_host(segment.host, addr_port)
                 connection = self.connections[segment.host]
@@ -81,6 +98,9 @@ class NetTask:
 
                 for segment in to_send:
                     self.socket.sendto(segment.serialize(), addr_port)
+
+                wait = min(c.time_until_next_timeout() for c in self.connections.values())
+                self.socket.settimeout(wait)
 
     def receive(self) -> tuple[bytes, str]:
         def get_receiving_host() -> Optional[str]:
