@@ -3,14 +3,16 @@ import sys
 from threading import Condition, Thread
 from typing import Optional
 
-from .NetTaskConnection import NetTaskConnection
+from .NetTaskConnection import NetTaskConnectionException, NetTaskConnection
 from .structs.NetTaskSegment import NetTaskSegment
 from .structs.Message import SerializationException
 
+# pylint: disable-next=too-many-instance-attributes
 class NetTask:
     def __init__(self, host: str, bind_port: Optional[int] = None):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         self.host = host
+        self.bind_port = bind_port
         if bind_port is not None:
             self.socket.bind(('0.0.0.0', bind_port))
 
@@ -34,13 +36,29 @@ class NetTask:
             except SerializationException:
                 print('NetTask ignored deserialization exception', file=sys.stderr)
 
+    def __assert_running_management_thread(self) -> None:
+        if not self.management_thread.is_alive():
+            raise NetTaskConnectionException('Connection ended')
+
     def add_host(self, host: str, addr_port: tuple[str, int]) -> None:
         with self.condition:
+            self.__assert_running_management_thread()
+
             self.host_ips[host] = addr_port
             self.ip_hosts[addr_port] = host
 
             if host not in self.connections:
-                self.connections[host] = NetTaskConnection()
+                self.connections[host] = NetTaskConnection(self.host)
+
+    def remove_host(self, host: str) -> None:
+        with self.condition:
+            self.__assert_running_management_thread()
+
+            addr_port = self.host_ips[host]
+
+            del self.host_ips[host]
+            del self.ip_hosts[addr_port]
+            del self.connections[host]
 
     def __management_loop(self) -> None:
         while True:
@@ -48,8 +66,21 @@ class NetTask:
             with self.condition:
                 self.add_host(segment.host, addr_port)
                 connection = self.connections[segment.host]
-                connection.enqueue(segment)
-                self.condition.notify_all()
+
+                try:
+                    to_send = connection.enqueue(segment)
+                except NetTaskConnectionException:
+                    self.remove_host(segment.host)
+
+                    # Kill client if connection ended
+                    if self.bind_port is None:
+                        self.condition.notify_all()
+                        return
+                finally:
+                    self.condition.notify_all()
+
+                for segment in to_send:
+                    self.socket.sendto(segment.serialize(), addr_port)
 
     def receive(self) -> tuple[bytes, str]:
         def get_receiving_host() -> Optional[str]:
@@ -61,6 +92,8 @@ class NetTask:
 
         with self.condition:
             while True:
+                self.__assert_running_management_thread()
+
                 host = get_receiving_host()
                 if host is not None:
                     break
@@ -71,8 +104,10 @@ class NetTask:
 
     def send(self, message: bytes, host: str) -> None:
         with self.condition:
+            self.__assert_running_management_thread()
+
             addr_port = self.host_ips[host]
             connection = self.connections[host]
 
-            segment = connection.send(message, self.host)
+            segment = connection.send(message)
             self.socket.sendto(segment.serialize(), addr_port)
