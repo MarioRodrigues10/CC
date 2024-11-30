@@ -13,4 +13,7 @@ from .structs.MessagePrepare import MessagePrepare
 from .structs.MessageRegister import MessageRegister
 from .structs.MessageTask import MessageTask
 
-from .NetTask import NetTask
+from .structs.NetTaskSegmentBody import NetTaskSegmentBody
+from .structs.NetTaskAckSegmentBody import NetTaskAckSegmentBody
+from .structs.NetTaskDataSegmentBody import NetTaskDataSegmentBody
+from .structs.NetTaskSegment import NetTaskSegment
