@@ -13,6 +13,9 @@ class NetTaskRuntimeException(Exception):
 
 T = TypeVar('T')
 
+# Check socket for periodical retransmissions in case connection beggining gets lost
+MINIMAL_SOCKET_TIMEOUT = 2
+
 class NetTask:
     def __init__(self, own_host_name: str, bind_port: Optional[int] = None):
         self.__socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
@@ -20,13 +23,13 @@ class NetTask:
         if bind_port is not None:
             self.__socket.bind(('0.0.0.0', bind_port))
 
+        self.__host_addr_port: dict[str, tuple[str, int]] = {}
+        self.__connections: dict[str, NetTaskConnection] = {}
+
         self.__condition = Condition()
         self.__bg_thread = Thread(target = self.__bg_loop)
         self.__bg_thread.daemon = True
         self.__bg_thread.start()
-
-        self.__host_addr_port: dict[str, tuple[str, int]] = {}
-        self.__connections: dict[str, NetTaskConnection] = {}
 
     @staticmethod
     def __synchronized(f: Callable[..., T]) -> Callable[..., T]:
@@ -64,11 +67,31 @@ class NetTask:
 
         self.__condition.notify_all()
 
+    def __handle_timeout(self) -> None:
+        for host, connection in self.__connections.items():
+            wakeup_segment = connection.act_on_timeout()
+            if wakeup_segment is not None:
+                addr_port = self.__host_addr_port[host]
+                self.__socket.sendto(wakeup_segment.serialize(), addr_port)
+
+    def __time_until_next_timeout(self) -> Optional[float]:
+        try:
+            min_connections = min(c.time_until_next_timeout() for c in self.__connections.values())
+            return min(MINIMAL_SOCKET_TIMEOUT, min_connections)
+        except ValueError:
+            return MINIMAL_SOCKET_TIMEOUT
+
     def __bg_loop(self) -> None:
         while True:
-            segment, host = self.__receive_next_segment()
-            with self.__condition:
-                self.__handle_received_segment(segment, host)
+            self.__socket.settimeout(self.__time_until_next_timeout())
+
+            try:
+                segment, host = self.__receive_next_segment()
+                with self.__condition:
+                    self.__handle_received_segment(segment, host)
+            except TimeoutError:
+                with self.__condition:
+                    self.__handle_timeout()
 
     @__synchronized
     def connect(self, host: str, addr_port: tuple[str, int]) -> None:
