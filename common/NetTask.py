@@ -56,7 +56,12 @@ class NetTask:
 
     def __handle_received_segment(self, segment: NetTaskSegment, host: str) -> None:
         connection = self.__connections[host]
-        connection.handle_received_segment(segment)
+
+        reply_segment = connection.handle_received_segment(segment)
+        if reply_segment is not None:
+            addr_port = self.__host_addr_port[host]
+            self.__socket.sendto(reply_segment.serialize(), addr_port)
+
         self.__condition.notify_all()
 
     def __bg_loop(self) -> None:
@@ -72,7 +77,6 @@ class NetTask:
             self.__connections[host] = NetTaskConnection(self.__own_host_name)
 
         # TODO - establish connection
-        pass
 
     @__synchronized
     def receive(self) -> tuple[bytes, str]:

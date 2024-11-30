@@ -2,24 +2,59 @@ from typing import Optional
 
 from .structs.NetTaskSegment import NetTaskSegment
 from .structs.NetTaskDataSegmentBody import NetTaskDataSegmentBody
+from .structs.NetTaskAckSegmentBody import NetTaskAckSegmentBody
 
 class NetTaskConnection:
     def __init__(self, own_host_name: str):
         self.__own_host_name = own_host_name
 
         self.__receive_queue: dict[int, bytes] = {}
-        self.__next_sequence_to_receive: int = 0
+        self.__next_sequence_to_receive = 0
+        self.__own_max_ack = 0
 
         self.__unacked_segments: dict[int, NetTaskSegment] = {}
         self.__send_sequence = 0
+        self.__other_max_ack = 0
 
-    def __handle_received_data_segment(self, sequence: int, message: bytes) -> None:
+    def __handle_received_data_segment(self, sequence: int, message: bytes) \
+        -> Optional[NetTaskSegment]:
+
         if sequence >= self.__next_sequence_to_receive:
             self.__receive_queue[sequence] = message
 
-    def handle_received_segment(self, segment: NetTaskSegment) -> None:
+            # Calculate and send next ACK
+            while True:
+                self.__own_max_ack += 1
+                if self.__own_max_ack not in self.__receive_queue:
+                    self.__own_max_ack -= 1
+                    return NetTaskSegment(0,
+                                          self.__own_host_name,
+                                          NetTaskAckSegmentBody(self.__own_max_ack))
+
+        return None
+
+    def __handle_received_ack_segment(self, ack: int) -> Optional[NetTaskSegment]:
+        # Remove segments we know don't need to be retransmitted
+        for sequence in list(self.__unacked_segments):
+            if sequence <= ack:
+                del self.__unacked_segments[sequence]
+
+        # Retranmsit if needed
+        if ack < self.__send_sequence - 1 and ack <= self.__other_max_ack:
+            print('RETRANSMITTING', ack + 1)
+            return self.__unacked_segments[ack + 1]
+        else:
+            self.__other_max_ack = ack
+
+        return None
+
+    def handle_received_segment(self, segment: NetTaskSegment) -> Optional[NetTaskSegment]:
         if isinstance(segment.body, NetTaskDataSegmentBody):
-            self.__handle_received_data_segment(segment.sequence, segment.body.message)
+            return self.__handle_received_data_segment(segment.sequence, segment.body.message)
+        elif isinstance(segment.body, NetTaskAckSegmentBody):
+            return self.__handle_received_ack_segment(segment.body.ack)
+
+        return None
 
     def get_next_received_message(self) -> Optional[bytes]:
         if self.__next_sequence_to_receive not in self.__receive_queue:
