@@ -16,6 +16,8 @@ KEEP_ALIVE_INTERVAL = 10 # seconds
 KEEP_ALIVE_TIMEOUT = 30 # seconds
 
 WINDOW_SIZE = 32 # messages
+INFORM_NEW_MAX_SEQUENCE_THRESHOLD = 24 # messages
+SEND_QUEUE_MAX_SIZE = 64 # messages
 
 class NetTaskConnectionException(Exception):
     pass
@@ -25,42 +27,57 @@ class NetTaskConnection:
     def __init__(self, own_host_name: str, is_starter: bool):
         current_time = time.time()
 
+        # Basic information
         self.__own_host_name = own_host_name
         self.__is_starter = is_starter
 
+        # Incoming data
         self.__receive_queue: dict[int, NetTaskSegment] = {}
         self.__next_sequence_to_receive = 1
         self.__own_max_ack = 0
         self.__last_known_other_alive = current_time
 
+        # Outgoing data
         self.__unacked_segments: dict[int, NetTaskSegment] = {}
         self.__next_sequence_to_send = 1
         self.__other_max_ack = 0
         self.__last_sent_data_segment_time = current_time
         self.__last_made_aware_alive = current_time
 
+        # RTT estimation
         self.__rtt_avg_estimate: Optional[float] = None
         self.__rtt_stdev_estimate: Optional[float] = None
 
-        self.__own_window_size = WINDOW_SIZE
-        self.__other_window_size = 0
+        # Flow control information
+        self.__send_queue: list[bytes] = []
+        self.__own_max_sequence = self.__next_sequence_to_receive + WINDOW_SIZE
+        self.__other_max_sequence = 0
+        self.__messages_removed_from_receive_queue = 0
+
+    def __register_segment(self, segment: NetTaskSegment) -> None:
+        if segment.sequence < self.__next_sequence_to_receive:
+            return
+
+        if not isinstance(segment.body, NetTaskDataSegmentBody):
+            self.__own_max_sequence += 1
+
+        if segment.sequence <= self.__own_max_sequence:
+            self.__receive_queue[segment.sequence] = segment
 
     def __handle_received_ackable_segment(self, segment: NetTaskSegment) -> list[NetTaskSegment]:
         segments: list[NetTaskSegment] = []
 
-        if segment.sequence >= self.__next_sequence_to_receive:
-            self.__receive_queue[segment.sequence] = segment
+        # Register segment in receive queue if possible
+        self.__register_segment(segment)
 
-            # Calculate and send next ACK
-            while True:
-                self.__own_max_ack += 1
-                if self.__own_max_ack not in self.__receive_queue:
-                    self.__own_max_ack -= 1
-                    break
+        # Calculate and send next ACK
+        while True:
+            self.__own_max_ack += 1
+            if self.__own_max_ack not in self.__receive_queue:
+                self.__own_max_ack -= 1
+                break
 
-        current_time = time.time()
-        self.__last_made_aware_alive = current_time
-
+        self.__last_made_aware_alive = time.time()
         segments.append(NetTaskSegment(0,
                                        segment.time,
                                        self.__own_host_name,
@@ -68,15 +85,17 @@ class NetTaskConnection:
 
         # Reply to connection beginning
         if isinstance(segment.body, NetTaskWindowSegmentBody):
-            self.__other_window_size = segment.body.window
+            self.__other_max_sequence = segment.body.max_sequence
 
             if self.__next_sequence_to_send == 1:
                 segments.append(self.__update_connection_on_send(
-                    NetTaskWindowSegmentBody(self.__own_window_size)))
+                    NetTaskWindowSegmentBody(self.__own_max_sequence)))
 
         return segments
 
     def __handle_received_ack_segment(self, ack: int, seg_time: float) -> list[NetTaskSegment]:
+        segments: list[NetTaskSegment] = []
+
         # Remove segments we know don't need to be retransmitted
         for sequence in list(self.__unacked_segments):
             if sequence <= ack:
@@ -98,13 +117,18 @@ class NetTaskConnection:
             self.__last_sent_data_segment_time = current_time
             self.__unacked_segments[ack + 1].time = current_time
             self.__last_made_aware_alive = current_time
-            return [self.__unacked_segments[ack + 1]]
+            segments.append(self.__unacked_segments[ack + 1])
         else:
             self.__other_max_ack = ack
-            return []
+
+        # Transmit more segments if possible
+        segments += self.__sendable_segments()
+
+        return segments
 
     def handle_received_segment(self, segment: NetTaskSegment) -> list[NetTaskSegment]:
         self.__last_known_other_alive = time.time()
+
         if isinstance(segment.body, NetTaskAckSegmentBody):
             return self.__handle_received_ack_segment(segment.body.ack, segment.time)
         else:
@@ -144,10 +168,6 @@ class NetTaskConnection:
             self.__last_sent_data_segment_time = current_time
 
             if len(self.__unacked_segments) > 0:
-                if self.__rtt_avg_estimate is not None and self.__rtt_stdev_estimate is not None:
-                    self.__rtt_avg_estimate *= RETRANSMISSION_PENALIZATION
-                    self.__rtt_stdev_estimate *= RETRANSMISSION_PENALIZATION ** 0.5
-
                 retransmit_segment = self.__unacked_segments[self.__other_max_ack + 1]
                 retransmit_segment.time = current_time
                 self.__last_sent_data_segment_time = current_time
@@ -160,22 +180,32 @@ class NetTaskConnection:
         return None
 
     def prepare_connect_segment(self) -> NetTaskSegment:
-        return self.__update_connection_on_send(NetTaskWindowSegmentBody(self.__own_window_size))
+        return self.__update_connection_on_send(NetTaskWindowSegmentBody(self.__own_max_sequence))
 
     def is_connected(self) -> bool:
         return self.__next_sequence_to_send == 2 and self.__own_max_ack == 1
 
-    def get_next_received_message(self) -> Optional[bytes]:
-        if self.__next_sequence_to_receive not in self.__receive_queue:
-            return None
+    def get_received_messages(self) -> tuple[list[bytes], Optional[NetTaskSegment]]:
+        messages = []
+        window_segment = None
 
-        to_receive = self.__receive_queue.pop(self.__next_sequence_to_receive)
-        self.__next_sequence_to_receive += 1
+        while self.__next_sequence_to_receive in self.__receive_queue:
+            segment = self.__receive_queue.pop(self.__next_sequence_to_receive)
+            if isinstance(segment.body, NetTaskDataSegmentBody):
+                messages.append(segment.body.message)
+                self.__own_max_sequence += 1
+                self.__messages_removed_from_receive_queue += 1
 
-        if isinstance(to_receive.body, NetTaskDataSegmentBody):
-            return to_receive.body.message
-        else:
-            return self.get_next_received_message()
+            self.__next_sequence_to_receive += 1
+
+        if self.__messages_removed_from_receive_queue >= INFORM_NEW_MAX_SEQUENCE_THRESHOLD and \
+            messages != []:
+
+            self.__messages_removed_from_receive_queue = 0
+            window_segment = self.__update_connection_on_send(
+                NetTaskWindowSegmentBody(self.__own_max_sequence))
+
+        return messages, window_segment
 
     def __update_connection_on_send(self, body: NetTaskSegmentBody) -> NetTaskSegment:
         current_time = time.time()
@@ -192,5 +222,17 @@ class NetTaskConnection:
 
         return segment
 
-    def encapsulate_for_sending(self, message: bytes) -> NetTaskSegment:
-        return self.__update_connection_on_send(NetTaskDataSegmentBody(message))
+    def __sendable_segments(self) -> list[NetTaskSegment]:
+        can_send = \
+            self.__other_max_sequence - self.__next_sequence_to_send - len(self.__unacked_segments)
+
+        to_send = self.__send_queue[:can_send]
+        self.__send_queue = self.__send_queue[len(to_send) + 1:]
+        return [self.__update_connection_on_send(NetTaskDataSegmentBody(m)) for m in to_send]
+
+    def encapsulate_for_sending(self, message: bytes) -> list[NetTaskSegment]:
+        if len(self.__send_queue) == SEND_QUEUE_MAX_SIZE:
+            raise NetTaskConnectionException('Full send queue')
+
+        self.__send_queue.append(message)
+        return self.__sendable_segments()

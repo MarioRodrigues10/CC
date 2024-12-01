@@ -77,12 +77,12 @@ class NetTask:
                 if wakeup_segment is not None:
                     addr_port = self.__host_addr_port[host]
                     self.__socket.sendto(wakeup_segment.serialize(), addr_port)
-            except NetTaskConnectionException:
+            except NetTaskConnectionException as e:
                 if self.__is_server:
                     print('NetTask connection closed unexpectedly', file=stderr)
                     del self.__connections[host]
                 else:
-                    return
+                    raise e
 
     def __time_until_next_timeout(self) -> Optional[float]:
         try:
@@ -98,10 +98,19 @@ class NetTask:
             try:
                 segment, host = self.__receive_next_segment()
                 with self.__condition:
-                    self.__handle_received_segment(segment, host)
+                    try:
+                        self.__handle_received_segment(segment, host)
+                    except BaseException as e:
+                        self.__condition.notify_all()
+                        raise e
+
             except TimeoutError:
                 with self.__condition:
-                    self.__handle_timeout()
+                    try:
+                        self.__handle_timeout()
+                    except BaseException as e:
+                        self.__condition.notify_all()
+                        raise e
 
     @__synchronized
     def connect(self, host: str, addr_port: tuple[str, int]) -> None:
@@ -113,6 +122,7 @@ class NetTask:
             self.__socket.sendto(connect_segment.serialize(), addr_port)
 
             while True:
+                # Avoid deadlock in case of death of the management thread
                 if not self.__bg_thread.is_alive():
                     raise NetTaskRuntimeException('Management thread died unexpectedly')
 
@@ -122,25 +132,49 @@ class NetTask:
                 if self.__connections[host].is_connected():
                     return
                 self.__condition.wait()
+        else:
+            raise NetTaskRuntimeException(f'Already connected to {host}')
 
     @__synchronized
-    def receive(self) -> tuple[bytes, str]:
+    def receive(self) -> tuple[list[bytes], str]:
         while True:
             # Avoid deadlock in case of death of the management thread
             if not self.__bg_thread.is_alive():
                 raise NetTaskRuntimeException('Management thread died unexpectedly')
 
             for connection_host, connection in self.__connections.items():
-                message = connection.get_next_received_message()
-                if message is not None:
-                    return message, connection_host
+                messages, window_segment = connection.get_received_messages()
+                if window_segment is not None:
+                    addr_port = self.__host_addr_port[connection_host]
+                    self.__socket.sendto(window_segment.serialize(), addr_port)
+
+                if messages != []:
+                    return messages, connection_host
 
             self.__condition.wait()
 
     @__synchronized
     def send(self, message: bytes, host: str) -> None:
-        addr_port = self.__host_addr_port[host]
-        connection = self.__connections[host]
+        while True:
+            # Avoid deadlock in case of death of the management thread
+            if not self.__bg_thread.is_alive():
+                raise NetTaskRuntimeException('Management thread died unexpectedly')
 
-        segment = connection.encapsulate_for_sending(message)
-        self.__socket.sendto(segment.serialize(), addr_port)
+            if host not in self.__connections:
+                raise NetTaskRuntimeException('Connection died unexpectedly')
+
+            # Try to at least enqueue the segment for transmission
+            connection = self.__connections[host]
+            try:
+                segments = connection.encapsulate_for_sending(message)
+
+                for segment in segments:
+                    # Receiver's window is not full and segment can be transmitted now
+                    addr_port = self.__host_addr_port[host]
+                    self.__socket.sendto(segment.serialize(), addr_port)
+                    return
+            except NetTaskConnectionException:
+                # Full send queue
+                pass
+
+            self.__condition.wait()
