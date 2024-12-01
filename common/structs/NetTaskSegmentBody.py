@@ -21,8 +21,8 @@ class NetTaskSegmentBody(ABC):
     @classmethod
     @abstractmethod
     def deserialize(cls, data: bytes) -> Self:
-        if len(data) <= 1:
-            raise SerializationException('Incomplete command')
+        if len(data) == 0:
+            raise SerializationException('Incomplete segment')
 
         try:
             command_type = int.from_bytes(data[:1], 'big')

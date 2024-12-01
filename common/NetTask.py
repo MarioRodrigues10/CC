@@ -4,7 +4,7 @@ from sys import stderr
 from threading import Condition, Thread
 from typing import Any, Callable, Optional, Self, TypeVar
 
-from .NetTaskConnection import NetTaskConnection
+from .NetTaskConnection import NetTaskConnection, NetTaskConnectionException
 from .structs.Message import SerializationException
 from .structs.NetTaskSegment import NetTaskSegment
 
@@ -20,7 +20,8 @@ class NetTask:
     def __init__(self, own_host_name: str, bind_port: Optional[int] = None):
         self.__socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         self.__own_host_name = own_host_name
-        if bind_port is not None:
+        self.__is_server = bind_port is not None
+        if self.__is_server:
             self.__socket.bind(('0.0.0.0', bind_port))
 
         self.__host_addr_port: dict[str, tuple[str, int]] = {}
@@ -51,7 +52,8 @@ class NetTask:
                 with self.__condition:
                     self.__host_addr_port[segment.host] = addr_port
                     if segment.host not in self.__connections:
-                        self.__connections[segment.host] = NetTaskConnection(self.__own_host_name)
+                        self.__connections[segment.host] = \
+                            NetTaskConnection(self.__own_host_name, False)
 
                 return segment, segment.host
             except SerializationException:
@@ -68,11 +70,19 @@ class NetTask:
         self.__condition.notify_all()
 
     def __handle_timeout(self) -> None:
-        for host, connection in self.__connections.items():
-            wakeup_segment = connection.act_on_timeout()
-            if wakeup_segment is not None:
-                addr_port = self.__host_addr_port[host]
-                self.__socket.sendto(wakeup_segment.serialize(), addr_port)
+        for host, connection in list(self.__connections.items()):
+            try:
+                wakeup_segment = connection.act_on_timeout()
+
+                if wakeup_segment is not None:
+                    addr_port = self.__host_addr_port[host]
+                    self.__socket.sendto(wakeup_segment.serialize(), addr_port)
+            except NetTaskConnectionException as e:
+                if self.__is_server:
+                    print('NetTask connection closed unexpectedly', file=stderr)
+                    del self.__connections[host]
+                else:
+                    return
 
     def __time_until_next_timeout(self) -> Optional[float]:
         try:
@@ -97,7 +107,7 @@ class NetTask:
     def connect(self, host: str, addr_port: tuple[str, int]) -> None:
         self.__host_addr_port[host] = addr_port
         if host not in self.__connections:
-            self.__connections[host] = NetTaskConnection(self.__own_host_name)
+            self.__connections[host] = NetTaskConnection(self.__own_host_name, True)
 
         # TODO - establish connection
 
