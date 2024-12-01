@@ -62,8 +62,8 @@ class NetTask:
     def __handle_received_segment(self, segment: NetTaskSegment, host: str) -> None:
         connection = self.__connections[host]
 
-        reply_segment = connection.handle_received_segment(segment)
-        if reply_segment is not None:
+        reply_segments = connection.handle_received_segment(segment)
+        for reply_segment in reply_segments:
             addr_port = self.__host_addr_port[host]
             self.__socket.sendto(reply_segment.serialize(), addr_port)
 
@@ -77,7 +77,7 @@ class NetTask:
                 if wakeup_segment is not None:
                     addr_port = self.__host_addr_port[host]
                     self.__socket.sendto(wakeup_segment.serialize(), addr_port)
-            except NetTaskConnectionException as e:
+            except NetTaskConnectionException:
                 if self.__is_server:
                     print('NetTask connection closed unexpectedly', file=stderr)
                     del self.__connections[host]
@@ -109,7 +109,19 @@ class NetTask:
         if host not in self.__connections:
             self.__connections[host] = NetTaskConnection(self.__own_host_name, True)
 
-        # TODO - establish connection
+            connect_segment = self.__connections[host].prepare_connect_segment()
+            self.__socket.sendto(connect_segment.serialize(), addr_port)
+
+            while True:
+                if not self.__bg_thread.is_alive():
+                    raise NetTaskRuntimeException('Management thread died unexpectedly')
+
+                if host not in self.__connections:
+                    raise NetTaskRuntimeException('Connection died unexpectedly')
+
+                if self.__connections[host].is_connected():
+                    return
+                self.__condition.wait()
 
     @__synchronized
     def receive(self) -> tuple[bytes, str]:
