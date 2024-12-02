@@ -14,8 +14,13 @@ def main(argv: list[str]) -> None:
 
     server = NetTask('server', 9999)
     while True:
-        message, agent = server.receive()
-        print(message, agent)
+        messages, agent = server.receive()
+        for m in messages:
+            number = int.from_bytes(m, 'big')
+            for i in range(number + 1):
+                server.send(i.to_bytes(4, 'big'), agent)
+
+        server.close(agent)
 
 if __name__ == '__main__':
     main(sys.argv)

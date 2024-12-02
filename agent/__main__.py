@@ -11,11 +11,18 @@ def main(argv: list[str]) -> None:
 
     IPerfServer.start_if_not_running()
 
+    number = int(input('Write a positive number> '))
+
     client = NetTask(argv[1])
-    client.add_host('server', (argv[2], 9999))
+    client.connect('server', (argv[2], 9999))
+    client.send(number.to_bytes(4, 'big'), 'server')
     while True:
-        client.send(b'Hello', 'server')
-        time.sleep(1)
+        messages, host = client.receive()
+        if host == '':
+            break
+
+        for m in messages:
+            print(int.from_bytes(m, 'big'))
 
 if __name__ == '__main__':
     main(sys.argv)
