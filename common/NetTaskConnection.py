@@ -67,6 +67,13 @@ class NetTaskConnection:
     def __handle_received_ackable_segment(self, segment: NetTaskSegment) -> list[NetTaskSegment]:
         segments: list[NetTaskSegment] = []
 
+        # Fail if connection started incorrectly
+        if self.__own_max_ack == 0 and \
+            (segment.sequence != 1 or not isinstance(segment.body, NetTaskWindowSegmentBody)):
+
+            print(segment)
+            raise NetTaskConnectionException('Connection started unexpectedly')
+
         # Register segment in receive queue if possible
         self.__register_segment(segment)
 
@@ -113,7 +120,10 @@ class NetTaskConnection:
             self.__rtt_avg_estimate = 0.875 * self.__rtt_avg_estimate + 0.125 * delta
 
         # Retranmsit if needed
-        if ack < self.__next_sequence_to_send - 1 and ack <= self.__other_max_ack:
+        if ack < self.__next_sequence_to_send - 1 and \
+            ack <= self.__other_max_ack and \
+            ack + 1 in self.__unacked_segments:
+
             self.__last_sent_data_segment_time = current_time
             self.__unacked_segments[ack + 1].time = current_time
             self.__last_made_aware_alive = current_time
@@ -167,7 +177,9 @@ class NetTaskConnection:
         if current_time - self.__last_sent_data_segment_time >= self.__retransmission_time_limit():
             self.__last_sent_data_segment_time = current_time
 
-            if len(self.__unacked_segments) > 0:
+            if len(self.__unacked_segments) > 0 and \
+                self.__other_max_ack + 1 in self.__unacked_segments:
+
                 retransmit_segment = self.__unacked_segments[self.__other_max_ack + 1]
                 retransmit_segment.time = current_time
                 self.__last_sent_data_segment_time = current_time
