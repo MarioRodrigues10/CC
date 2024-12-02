@@ -21,6 +21,7 @@ class NetTask:
         self.__socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         self.__own_host_name = own_host_name
         self.__is_server = bind_port is not None
+        self.__accepting_connections = self.__is_server
         if self.__is_server:
             self.__socket.bind(('0.0.0.0', bind_port))
 
@@ -51,7 +52,7 @@ class NetTask:
 
                 with self.__condition:
                     self.__host_addr_port[segment.host] = addr_port
-                    if segment.host not in self.__connections:
+                    if segment.host not in self.__connections and self.__accepting_connections:
                         self.__connections[segment.host] = \
                             NetTaskConnection(self.__own_host_name, False)
 
@@ -112,6 +113,10 @@ class NetTask:
                         self.__condition.notify_all()
                         raise e
 
+    def __assert_thread_alive(self) -> None:
+        if not self.__bg_thread.is_alive():
+            raise NetTaskRuntimeException('Management thread died unexpectedly')
+
     @__synchronized
     def connect(self, host: str, addr_port: tuple[str, int]) -> None:
         self.__host_addr_port[host] = addr_port
@@ -122,10 +127,7 @@ class NetTask:
             self.__socket.sendto(connect_segment.serialize(), addr_port)
 
             while True:
-                # Avoid deadlock in case of death of the management thread
-                if not self.__bg_thread.is_alive():
-                    raise NetTaskRuntimeException('Management thread died unexpectedly')
-
+                self.__assert_thread_alive()
                 if host not in self.__connections:
                     raise NetTaskRuntimeException('Connection died unexpectedly')
 
@@ -138,15 +140,18 @@ class NetTask:
     @__synchronized
     def receive(self) -> tuple[list[bytes], str]:
         while True:
-            # Avoid deadlock in case of death of the management thread
-            if not self.__bg_thread.is_alive():
-                raise NetTaskRuntimeException('Management thread died unexpectedly')
+            self.__assert_thread_alive()
 
-            for connection_host, connection in self.__connections.items():
+            for connection_host, connection in list(self.__connections.items()):
                 messages, window_segment = connection.get_received_messages()
                 if window_segment is not None:
                     addr_port = self.__host_addr_port[connection_host]
                     self.__socket.sendto(window_segment.serialize(), addr_port)
+
+                if connection.is_closed():
+                    del self.__connections[connection_host]
+                    if not self.__is_server:
+                        return messages, '' # Sinalize end of connection with no host
 
                 if messages != []:
                     return messages, connection_host
@@ -156,15 +161,16 @@ class NetTask:
     @__synchronized
     def send(self, message: bytes, host: str) -> None:
         while True:
-            # Avoid deadlock in case of death of the management thread
-            if not self.__bg_thread.is_alive():
-                raise NetTaskRuntimeException('Management thread died unexpectedly')
-
+            self.__assert_thread_alive()
             if host not in self.__connections:
                 raise NetTaskRuntimeException('Connection died unexpectedly')
 
             # Try to at least enqueue the segment for transmission
             connection = self.__connections[host]
+            if connection.is_closed():
+                del self.__connections[host]
+                raise NetTaskRuntimeException('Trying to send data to a closed connection')
+
             try:
                 segments = connection.encapsulate_for_sending(message)
 
@@ -176,5 +182,31 @@ class NetTask:
             except NetTaskConnectionException:
                 # Full send queue
                 pass
+
+            self.__condition.wait()
+
+    @__synchronized
+    def close(self, host: Optional[str] = None) -> None:
+        if host is None:
+            self.__accepting_connections = False
+            hosts = list(self.__connections)
+        else:
+            hosts = [host]
+
+        while True:
+            self.__assert_thread_alive()
+
+            for h in list(hosts):
+                connection = self.__connections.get(h)
+                if connection is None or connection.is_closed():
+                    hosts.remove(h)
+                else:
+                    close_segment = connection.close()
+                    if close_segment is not None:
+                        addr_port = self.__host_addr_port[h]
+                        self.__socket.sendto(close_segment.serialize(), addr_port)
+
+            if len(hosts) == 0:
+                return
 
             self.__condition.wait()

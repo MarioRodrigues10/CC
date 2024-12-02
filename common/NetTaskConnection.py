@@ -3,8 +3,9 @@ from typing import Optional
 
 from .structs.NetTaskSegment import NetTaskSegment
 from .structs.NetTaskSegmentBody import NetTaskSegmentBody
-from .structs.NetTaskDataSegmentBody import NetTaskDataSegmentBody
 from .structs.NetTaskAckSegmentBody import NetTaskAckSegmentBody
+from .structs.NetTaskCloseSegmentBody import NetTaskCloseSegmentBody
+from .structs.NetTaskDataSegmentBody import NetTaskDataSegmentBody
 from .structs.NetTaskKeepAliveSegmentBody import NetTaskKeepAliveSegmentBody
 from .structs.NetTaskWindowSegmentBody import NetTaskWindowSegmentBody
 
@@ -54,6 +55,10 @@ class NetTaskConnection:
         self.__other_max_sequence = 0
         self.__messages_removed_from_receive_queue = 0
 
+        # Connection closing
+        self.__other_has_closed = False
+        self.__own_close_segment_sequence: Optional[int] = None
+
     def __register_segment(self, segment: NetTaskSegment) -> None:
         if segment.sequence < self.__next_sequence_to_receive:
             return
@@ -71,7 +76,6 @@ class NetTaskConnection:
         if self.__own_max_ack == 0 and \
             (segment.sequence != 1 or not isinstance(segment.body, NetTaskWindowSegmentBody)):
 
-            print(segment)
             raise NetTaskConnectionException('Connection started unexpectedly')
 
         # Register segment in receive queue if possible
@@ -97,6 +101,17 @@ class NetTaskConnection:
             if self.__next_sequence_to_send == 1:
                 segments.append(self.__update_connection_on_send(
                     NetTaskWindowSegmentBody(self.__own_max_sequence)))
+
+        # Reply to connection end
+        if isinstance(segment.body, NetTaskCloseSegmentBody):
+            self.__other_has_closed = True
+
+            if self.__own_close_segment_sequence is None:
+                close_segment = self.__update_connection_on_send(
+                    NetTaskCloseSegmentBody())
+
+                self.__own_close_segment_sequence = close_segment.sequence
+                segments.append(close_segment)
 
         return segments
 
@@ -180,13 +195,21 @@ class NetTaskConnection:
             if len(self.__unacked_segments) > 0 and \
                 self.__other_max_ack + 1 in self.__unacked_segments:
 
+                if self.__rtt_avg_estimate is not None and self.__rtt_stdev_estimate is not None:
+                    self.__rtt_avg_estimate *= RETRANSMISSION_PENALIZATION
+                    self.__rtt_stdev_estimate *= RETRANSMISSION_PENALIZATION ** 0.5
+
                 retransmit_segment = self.__unacked_segments[self.__other_max_ack + 1]
                 retransmit_segment.time = current_time
                 self.__last_sent_data_segment_time = current_time
                 return retransmit_segment
 
         # Periodically send keep-alives to avoid timing out the other side
-        if self.__is_starter and current_time - self.__last_made_aware_alive >= KEEP_ALIVE_INTERVAL:
+        if self.__is_starter and \
+            self.__own_max_ack > 0 and \
+            self.__own_close_segment_sequence is None and \
+            current_time - self.__last_made_aware_alive >= KEEP_ALIVE_INTERVAL:
+
             return self.__update_connection_on_send(NetTaskKeepAliveSegmentBody())
 
         return None
@@ -195,7 +218,10 @@ class NetTaskConnection:
         return self.__update_connection_on_send(NetTaskWindowSegmentBody(self.__own_max_sequence))
 
     def is_connected(self) -> bool:
-        return self.__next_sequence_to_send == 2 and self.__own_max_ack == 1
+        return \
+            self.__next_sequence_to_send >= 2 and \
+            self.__own_max_ack >= 1 and \
+            not self.is_closed()
 
     def get_received_messages(self) -> tuple[list[bytes], Optional[NetTaskSegment]]:
         messages = []
@@ -248,3 +274,20 @@ class NetTaskConnection:
 
         self.__send_queue.append(message)
         return self.__sendable_segments()
+
+    def is_closed(self) -> bool:
+        return \
+            self.__other_has_closed and \
+            self.__own_close_segment_sequence is not None and \
+            self.__own_close_segment_sequence not in self.__unacked_segments
+
+    def close(self) -> Optional[NetTaskSegment]:
+        if len(self.__unacked_segments) > 0:
+            return None
+
+        if self.__own_close_segment_sequence is not None:
+            return None
+
+        close_segment = self.__update_connection_on_send(NetTaskCloseSegmentBody())
+        self.__own_close_segment_sequence = close_segment.sequence
+        return close_segment

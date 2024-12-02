@@ -25,4 +25,4 @@ class NetTaskWindowSegmentBody(NetTaskSegmentBody):
         return False
 
     def __repr__(self) -> str:
-        return f'NetTaskAckSegmentBody(max_sequence={self.max_sequence})'
+        return f'NetTaskWindowSegmentBody(max_sequence={self.max_sequence})'

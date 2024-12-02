@@ -15,6 +15,7 @@ from .structs.MessageTask import MessageTask
 
 from .structs.NetTaskSegmentBody import NetTaskSegmentBody
 from .structs.NetTaskAckSegmentBody import NetTaskAckSegmentBody
+from .structs.NetTaskCloseSegmentBody import NetTaskCloseSegmentBody
 from .structs.NetTaskDataSegmentBody import NetTaskDataSegmentBody
 from .structs.NetTaskKeepAliveSegmentBody import NetTaskKeepAliveSegmentBody
 from .structs.NetTaskWindowSegmentBody import NetTaskWindowSegmentBody
