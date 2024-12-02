@@ -31,7 +31,8 @@
         "Topic :: System :: Networking"
     ]
 
-    dependencies = ["Reader Writer Lock"]
+dependencies = ["readerwriterlock"]
+
 
 [project.urls]
     Homepage = "https://github.com/mariorodrigues10/CC"
