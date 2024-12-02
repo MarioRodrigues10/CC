@@ -96,7 +96,7 @@ class NetTaskConnection:
 
         # Reply to connection beginning
         if isinstance(segment.body, NetTaskWindowSegmentBody):
-            self.__other_max_sequence = segment.body.max_sequence
+            self.__other_max_sequence = max(self.__other_max_sequence, segment.body.max_sequence)
 
             if self.__next_sequence_to_send == 1:
                 segments.append(self.__update_connection_on_send(
