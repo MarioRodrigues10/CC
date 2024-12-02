@@ -1,5 +1,4 @@
 import sys
-import time
 
 from common import NetTask
 from .IPerfServer import IPerfServer

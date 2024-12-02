@@ -16,6 +16,7 @@ T = TypeVar('T')
 # Check socket for periodical retransmissions in case connection beggining gets lost
 MINIMAL_SOCKET_TIMEOUT = 2
 
+# pylint: disable-next=too-many-instance-attributes
 class NetTask:
     def __init__(self, own_host_name: str, bind_port: Optional[int] = None):
         self.__socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)

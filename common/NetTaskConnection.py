@@ -237,7 +237,7 @@ class NetTaskConnection:
             self.__next_sequence_to_receive += 1
 
         if self.__messages_removed_from_receive_queue >= INFORM_NEW_MAX_SEQUENCE_THRESHOLD and \
-            messages != []:
+            messages:
 
             self.__messages_removed_from_receive_queue = 0
             window_segment = self.__update_connection_on_send(
