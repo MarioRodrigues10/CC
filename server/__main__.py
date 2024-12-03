@@ -1,8 +1,12 @@
 import sys
 from pprint import pprint
 
-from common import NetTask
+from common import AlertFlow
 from .TasksParser import TasksParser
+
+class AlertFlowImpl(AlertFlow):
+    def handle_message(self, message: bytes, host: str) -> None:
+        print(f'Received message: {message!r} from {host}')
 
 def main(argv: list[str]) -> None:
     if len(argv) != 2:
@@ -12,15 +16,18 @@ def main(argv: list[str]) -> None:
     tasks = TasksParser.parse_json(argv[1])
     pprint(tasks)
 
-    server = NetTask('server', 9999)
-    while True:
-        messages, agent = server.receive()
-        for m in messages:
-            number = int.from_bytes(m, 'big')
-            for i in range(number + 1):
-                server.send(i.to_bytes(4, 'big'), agent)
+    alertflow = AlertFlowImpl('server', 10000)
+    alertflow.connection_acceptance_loop()
 
-        server.close(agent)
+    # server = NetTask('server', 9999)
+    # while True:
+    #     messages, agent = server.receive()
+    #     for m in messages:
+    #         number = int.from_bytes(m, 'big')
+    #         for i in range(number + 1):
+    #             server.send(i.to_bytes(4, 'big'), agent)
+    #
+    #     server.close(agent)
 
 if __name__ == '__main__':
     main(sys.argv)
