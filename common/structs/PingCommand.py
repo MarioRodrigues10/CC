@@ -43,6 +43,12 @@ class PingCommand(Command):
 
         return results
 
+    def should_emit_alert(self, command_output: Any) -> bool:
+        if not isinstance(command_output, PingOutput):
+            raise CommandException('Incorrect command output type')
+
+        return command_output.avg_latency >= self.rtt_alert
+
     def _command_serialize(self) -> bytes:
         count_bytes = self.count.to_bytes(2, 'big')
         rtt_alert_bytes = struct.pack('>f', self.rtt_alert)

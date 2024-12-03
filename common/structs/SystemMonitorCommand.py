@@ -73,6 +73,12 @@ class SystemMonitorCommand(Command):
     def run(self) -> SystemMonitorOutput:
         return SystemMonitorOutput(self.__measure_cpu_usage(), self.__measure_memory_usage())
 
+    def should_emit_alert(self, command_output: Any) -> bool:
+        if not isinstance(command_output, SystemMonitorOutput):
+            raise CommandException('Incorrect command output type')
+
+        return command_output.cpu >= self.cpu_alert or command_output.memory >= self.memory_alert
+
     def _command_serialize(self) -> bytes:
         cpu_alert_bytes = struct.pack('>f', self.cpu_alert)
         memory_alert_bytes = struct.pack('>f', self.memory_alert)
