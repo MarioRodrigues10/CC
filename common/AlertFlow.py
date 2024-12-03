@@ -2,6 +2,9 @@ import socket
 from threading import Thread
 from typing import Optional
 
+class AlertFlowException(Exception):
+    pass
+
 class AlertFlow:
     def __init__(self, bind_port: Optional[int] = None):
         self.__socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -14,10 +17,16 @@ class AlertFlow:
     def close(self) -> None:
         self.__socket.close()
 
+    def __construct_segment(self, message: bytes) -> bytes:
+        length_bytes = (len(message) + 2).to_bytes(2, 'big')
+        return length_bytes + message
+
     def send(self, message: bytes) -> None:
+        segment = self.__construct_segment(message)
+
         total_sent = 0
-        while total_sent < len(message):
-            sent = self.__socket.send(message[total_sent:])
+        while total_sent < len(segment):
+            sent = self.__socket.send(segment[total_sent:])
             total_sent += sent
 
     def connection_acceptance_loop(self) -> None:
@@ -28,13 +37,28 @@ class AlertFlow:
             connection_thread.daemon = True
             connection_thread.start()
 
-    def __connection_loop(self, connection: socket.socket) -> None:
-        while True:
-            received = connection.recv(4096)
+    def __receive_fixed_length(self, connection: socket.socket, length: int) -> bytes:
+        total_received = b''
+        remaining_bytes = length
+        while remaining_bytes > 0:
+            received = connection.recv(remaining_bytes)
             if received == b'':
-                return # End of connetion
+                raise AlertFlowException('Connection ended')
 
-            self.handle_message(received)
+            total_received += received
+            remaining_bytes -= len(received)
+
+        return total_received
+
+    def __connection_loop(self, connection: socket.socket) -> None:
+        try:
+            while True:
+                segment_length = int.from_bytes(self.__receive_fixed_length(connection, 2), 'big')
+                message = self.__receive_fixed_length(connection, segment_length - 2)
+
+                self.handle_message(message)
+        except AlertFlowException:
+            pass
 
     def handle_message(self, message: bytes) -> None:
         pass
