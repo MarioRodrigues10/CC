@@ -1,98 +1,102 @@
 import sqlite3
-from datetime import datetime
-from typing import Any
+import time
+from typing import Any, Optional
+
+from common import Message, IPOutput, IPerfOutput, PingOutput, SystemMonitorOutput
+
+class DatabaseException(Exception):
+    pass
+
+TABLE_COLUMNS = {
+    'agent': 'TEXT',
+    'target': 'TEXT',
+    'timestamp': 'REAL',
+
+    'interface_name': 'TEXT',
+    'connectivity': 'INTEGER',
+    'tx_bytes': 'INTEGER',
+    'tx_packets': 'INTEGER',
+    'rx_bytes': 'INTEGER',
+    'rx_packets': 'INTEGER',
+
+    'jitter': 'REAL',
+    'bandwidth': 'REAL',
+    'loss': 'REAL',
+
+    'avg_latency': 'REAL',
+    'stdev_latency': 'REAL',
+
+    'cpu': 'REAL',
+    'memory': 'REAL',
+}
 
 class Database:
-
-    def create_connection(self, db_file: str) -> Any:
-        """Create a database connection to a SQLite database."""
-        conn = None
+    def __init__(self, path: str):
         try:
-            conn = sqlite3.connect(db_file, check_same_thread=False)
-            print(f"Connected to the database: {db_file}")
-        except sqlite3.Error as e:
-            print(f"Error connecting to the database: {e}")
-        return conn
+            self.__connection = sqlite3.connect(path, check_same_thread=False)
 
-    def execute_sql(self, conn: Any, sql: Any, data: Any=None) -> None:
-        """Execute a single SQL statement."""
+            columns = ',\n'.join(f'{c} {t}' for c, t in TABLE_COLUMNS.items())
+            self.__execute_sql(f'''
+                CREATE TABLE IF NOT EXISTS command_output (
+                    {columns},
+                    PRIMARY KEY (agent, timestamp)
+                );''')
+        except sqlite3.Error as e:
+            raise DatabaseException() from e
+
+    def __execute_sql(self, sql: str, data: tuple[Any, ...] = ()) -> sqlite3.Cursor:
         try:
-            c = conn.cursor()
-            if data:
-                c.execute(sql, data)
-            else:
-                c.execute(sql)
-            conn.commit()
-            print(f"Executed SQL:\n{sql}")
+            cursor = self.__connection.cursor()
+            return cursor.execute(sql, data)
         except sqlite3.Error as e:
-            print(f"Error executing SQL:\n{sql}\nError: {e}")
+            raise DatabaseException() from e
+        finally:
+            self.__connection.commit()
 
-    def create_table(self, conn: Any) -> None:
-        """Create the command_output table if it doesn't exist."""
-        create_table_sql = """
-        CREATE TABLE IF NOT EXISTS command_output (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            task_id TEXT,
-            command_type TEXT,
-            interface_name TEXT,
-            connectivity TEXT,
-            tx_bytes INTEGER,
-            tx_packets INTEGER,
-            rx_bytes INTEGER,
-            rx_packets INTEGER,
-            target TEXT,
-            jitter REAL,
-            bandwidth REAL,
-            loss REAL,
-            targets TEXT,
-            transport TEXT,
-            time REAL,
-            jitter_alert REAL,
-            loss_alert REAL,
-            bandwidth_alert REAL,
-            alert_down INTEGER,
-            avg_latency REAL,
-            stdev_latency REAL,
-            cpu REAL,
-            memory REAL,
-            timestamp TEXT
-        );
-        """
-        self.execute_sql(conn, create_table_sql)
+    def register_task(self, agent: str, task_output: Message) -> None:
+        if type(task_output) not in [IPOutput, IPerfOutput, PingOutput, SystemMonitorOutput]:
+            raise DatabaseException('Invalid message to register')
 
-    def insert_data(self, conn: Any, command_data: Any) -> None:
-        """Insert data into the command_output table."""
-        sql = """INSERT INTO command_output (
-                    task_id, command_type, interface_name, connectivity, tx_bytes, tx_packets, 
-                    rx_bytes, rx_packets, target, jitter, bandwidth, loss, targets, 
-                    transport, time, jitter_alert, loss_alert, bandwidth_alert, 
-                    alert_down, avg_latency, stdev_latency, cpu, memory, timestamp)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
+        columns = { 'agent': agent, 'timestamp': time.time() }
+        for column, value in task_output.__dict__.items():
+            if column in TABLE_COLUMNS:
+                columns[column] = value
 
-        data = (
-            command_data.get("task_id", ""),
-            command_data.get("command_type", "unknown"),
-            command_data.get("interface_name", ""),
-            command_data.get("connectivity", ""),
-            command_data.get("tx_bytes", 0),
-            command_data.get("tx_packets", 0),
-            command_data.get("rx_bytes", 0),
-            command_data.get("rx_packets", 0),
-            command_data.get("jitter", 0.0),
-            command_data.get("bandwidth", 0.0),
-            command_data.get("loss", 0.0),
-            ", ".join(command_data.get("targets", [])),
-            command_data.get("transport", ""),
-            command_data.get("time", 0.0),
-            command_data.get("jitter_alert", 0.0),
-            command_data.get("loss_alert", 0.0),
-            command_data.get("bandwidth_alert", 0.0),
-            command_data.get("alert_down", 0),
-            command_data.get("avg_latency", 0.0),
-            command_data.get("stdev_latency", 0.0),
-            command_data.get("cpu", 0.0),
-            command_data.get("memory", 0.0),
-            datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        )
-        self.execute_sql(conn, sql, data)
-        print(f"Inserted data: {data}")
+        if type(task_output) in [IPOutput, SystemMonitorOutput]:
+            columns['target'] = agent # For easier database search
+
+        names = ', '.join(columns)
+        interrogations = ', '.join(['?'] * len(columns))
+        values = list(columns.values())
+        sql = f'INSERT INTO command_output ({names}) VALUES ({interrogations});'
+        self.__execute_sql(sql, tuple(values))
+
+    def get_agent_names(self) -> list[str]:
+        return [row[0] for row in self.__execute_sql(
+            'SELECT DISTINCT agent FROM command_output ORDER BY agent ASC;')]
+
+    def get_tasks(self,
+                  agent_target: Optional[tuple[str, str]] = None,
+                  limit_offset: Optional[tuple[int, int]] = None) -> list[dict[str, Any]]:
+
+        sql_arguments: tuple[Any, ...] = ()
+        if agent_target is None:
+            condition = ''
+        else:
+            condition = 'WHERE agent = ? AND target = ?'
+            sql_arguments += agent_target
+
+        if limit_offset is None:
+            limit = ''
+        else:
+            limit = 'LIMIT ? OFFSET ?'
+            sql_arguments += limit_offset
+
+        cursor = self.__execute_sql(f'''
+            SELECT *
+                FROM command_output
+                {condition}
+                ORDER BY timestamp desc
+                {limit};''', sql_arguments)
+
+        return [dict(zip(TABLE_COLUMNS, row)) for row in cursor]
