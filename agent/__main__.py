@@ -10,10 +10,10 @@ def main(argv: list[str]) -> None:
 
     IPerfServer.start_if_not_running()
 
-    alertflow = AlertFlow()
+    alertflow = AlertFlow(argv[1])
     alertflow.connect('localhost', 10000)
-    for _ in range(100):
-        alertflow.send(b'Hello, world')
+    for i in range(100):
+        alertflow.send(b'Hello, world ' + str(i).encode('utf-8'))
     alertflow.close()
 
     # number = int(input('Write a positive number> '))

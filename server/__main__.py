@@ -5,8 +5,8 @@ from common import AlertFlow
 from .TasksParser import TasksParser
 
 class AlertFlowImpl(AlertFlow):
-    def handle_message(self, message: bytes) -> None:
-        print(f'Received message: {message!r}')
+    def handle_message(self, message: bytes, host: str) -> None:
+        print(f'Received message: {message!r} from {host}')
 
 def main(argv: list[str]) -> None:
     if len(argv) != 2:
@@ -16,7 +16,7 @@ def main(argv: list[str]) -> None:
     tasks = TasksParser.parse_json(argv[1])
     pprint(tasks)
 
-    alertflow = AlertFlowImpl(10000)
+    alertflow = AlertFlowImpl('server', 10000)
     alertflow.connection_acceptance_loop()
 
     # server = NetTask('server', 9999)

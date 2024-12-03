@@ -1,4 +1,5 @@
 import socket
+import sys
 from threading import Thread
 from typing import Optional
 
@@ -6,8 +7,9 @@ class AlertFlowException(Exception):
     pass
 
 class AlertFlow:
-    def __init__(self, bind_port: Optional[int] = None):
+    def __init__(self, own_host_name: str, bind_port: Optional[int] = None):
         self.__socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.__own_host_name = own_host_name
         if bind_port is not None:
             self.__socket.bind(('0.0.0.0', bind_port))
 
@@ -18,8 +20,11 @@ class AlertFlow:
         self.__socket.close()
 
     def __construct_segment(self, message: bytes) -> bytes:
-        length_bytes = (len(message) + 2).to_bytes(2, 'big')
-        return length_bytes + message
+        own_host_name_bytes = self.__own_host_name.encode('utf-8') + b'\0'
+        segment_length = len(message) + len(own_host_name_bytes) + 2
+        length_bytes = segment_length.to_bytes(2, 'big')
+
+        return length_bytes + own_host_name_bytes + message
 
     def send(self, message: bytes) -> None:
         segment = self.__construct_segment(message)
@@ -54,11 +59,21 @@ class AlertFlow:
         try:
             while True:
                 segment_length = int.from_bytes(self.__receive_fixed_length(connection, 2), 'big')
-                message = self.__receive_fixed_length(connection, segment_length - 2)
+                remaining_segment = self.__receive_fixed_length(connection, segment_length - 2)
 
-                self.handle_message(message)
+                try:
+                    host_end = remaining_segment.index(b'\0')
+                    host = remaining_segment[:host_end].decode('utf-8')
+                    message = remaining_segment[host_end + 1:]
+                except (UnicodeError, ValueError):
+                    print('Closing AlertFlow connection due to invalid state', file=sys.stderr)
+                    connection.shutdown(socket.SHUT_RDWR)
+                    connection.close()
+                    return
+
+                self.handle_message(message, host)
         except AlertFlowException:
             pass
 
-    def handle_message(self, message: bytes) -> None:
+    def handle_message(self, message: bytes, host: str) -> None:
         pass
