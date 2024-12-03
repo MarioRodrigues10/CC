@@ -1,6 +1,6 @@
 import socket
 import sys
-from threading import Thread
+from threading import Thread, RLock
 from typing import Optional, cast
 
 class AlertFlowException(Exception):
@@ -15,14 +15,17 @@ class AlertFlow:
 
         self.__connected_addr: Optional[str] = None
         self.__connected_port: Optional[int] = None
+        self.__lock = RLock()
 
     def connect(self, addr: str, port: int) -> None:
-        self.__socket.connect((addr, port))
-        self.__connected_addr = addr
-        self.__connected_port = port
+        with self.__lock:
+            self.__socket.connect((addr, port))
+            self.__connected_addr = addr
+            self.__connected_port = port
 
     def close(self) -> None:
-        self.__socket.close()
+        with self.__lock:
+            self.__socket.close()
 
     def __construct_segment(self, message: bytes) -> bytes:
         own_host_name_bytes = self.__own_host_name.encode('utf-8') + b'\0'
@@ -48,21 +51,23 @@ class AlertFlow:
     def send(self, message: bytes) -> None:
         segment = self.__construct_segment(message)
 
-        total_sent = 0
-        while total_sent < len(segment):
-            sent = self.__socket.send(segment[total_sent:])
-            if sent == 0:
-                # NOTE: this needs to be tested in CORE
-                self.__reconnect()
-            total_sent += sent
+        with self.__lock:
+            total_sent = 0
+            while total_sent < len(segment):
+                sent = self.__socket.send(segment[total_sent:])
+                if sent == 0:
+                    # NOTE: this needs to be tested in CORE
+                    self.__reconnect()
+                total_sent += sent
 
     def connection_acceptance_loop(self) -> None:
-        self.__socket.listen()
-        while True:
-            connection, _ = self.__socket.accept()
-            connection_thread = Thread(target=self.__connection_loop, args=(connection,))
-            connection_thread.daemon = True
-            connection_thread.start()
+        with self.__lock:
+            self.__socket.listen()
+            while True:
+                connection, _ = self.__socket.accept()
+                connection_thread = Thread(target=self.__connection_loop, args=(connection,))
+                connection_thread.daemon = True
+                connection_thread.start()
 
     def __receive_fixed_length(self, connection: socket.socket, length: int) -> bytes:
         total_received = b''
