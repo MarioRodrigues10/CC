@@ -12,6 +12,10 @@ class Command(ABC):
         pass
 
     @abstractmethod
+    def should_emit_alert(self, command_output: Any) -> bool:
+        pass
+
+    @abstractmethod
     def _command_serialize(self) -> bytes:
         pass
 

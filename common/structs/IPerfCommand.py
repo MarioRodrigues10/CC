@@ -56,6 +56,14 @@ class IPerfCommand(Command):
 
         return results
 
+    def should_emit_alert(self, command_output: Any) -> bool:
+        if not isinstance(command_output, IPerfOutput):
+            raise CommandException('Incorrect command output type')
+
+        return command_output.jitter >= self.jitter_alert or \
+               command_output.loss >= self.loss_alert or \
+               command_output.bandwidth <= self.bandwidth_alert
+
     def _command_serialize(self) -> bytes:
         targets_bytes = b'\0'.join([target.encode('utf-8') for target in self.targets])
         transport_bytes = self.transport.value.to_bytes(1, byteorder='big')

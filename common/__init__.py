@@ -21,3 +21,5 @@ from .structs.NetTaskKeepAliveSegmentBody import NetTaskKeepAliveSegmentBody
 from .structs.NetTaskWindowSegmentBody import NetTaskWindowSegmentBody
 from .structs.NetTaskSegment import NetTaskSegment
 from .NetTask import NetTask
+
+from .AlertFlow import AlertFlow

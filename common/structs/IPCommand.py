@@ -41,6 +41,12 @@ class IPCommand(Command):
 
         return results
 
+    def should_emit_alert(self, command_output: Any) -> bool:
+        if not isinstance(command_output, IPOutput):
+            raise CommandException('Incorrect command output type')
+
+        return self.alert_down and not command_output.connectivity
+
     def _command_serialize(self) -> bytes:
         alert_down_bytes = int(self.alert_down).to_bytes(1, 'big')
         targets_bytes = b'\0'.join([target.encode('utf-8') for target in self.targets])
