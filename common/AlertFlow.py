@@ -1,7 +1,7 @@
 import socket
 import sys
 from threading import Thread
-from typing import Optional
+from typing import Optional, cast
 
 class AlertFlowException(Exception):
     pass
@@ -13,8 +13,13 @@ class AlertFlow:
         if bind_port is not None:
             self.__socket.bind(('0.0.0.0', bind_port))
 
+        self.__connected_addr: Optional[str] = None
+        self.__connected_port: Optional[int] = None
+
     def connect(self, addr: str, port: int) -> None:
         self.__socket.connect((addr, port))
+        self.__connected_addr = addr
+        self.__connected_port = port
 
     def close(self) -> None:
         self.__socket.close()
@@ -26,12 +31,29 @@ class AlertFlow:
 
         return length_bytes + own_host_name_bytes + message
 
+    def __reconnect(self) -> None:
+        while True:
+            try:
+                try:
+                    self.__socket.close()
+                except OSError:
+                    pass
+
+                self.__socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.connect(cast(str, self.__connected_addr), cast(int, self.__connected_port))
+                return
+            except OSError:
+                pass
+
     def send(self, message: bytes) -> None:
         segment = self.__construct_segment(message)
 
         total_sent = 0
         while total_sent < len(segment):
             sent = self.__socket.send(segment[total_sent:])
+            if sent == 0:
+                # NOTE: this needs to be tested in CORE
+                self.__reconnect()
             total_sent += sent
 
     def connection_acceptance_loop(self) -> None:
