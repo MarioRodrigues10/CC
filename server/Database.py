@@ -11,6 +11,7 @@ TABLE_COLUMNS = {
     'agent': 'TEXT',
     'target': 'TEXT',
     'timestamp': 'REAL',
+    'is_alert': 'INTEGER',
 
     'interface_name': 'TEXT',
     'connectivity': 'INTEGER',
@@ -53,11 +54,11 @@ class Database:
         finally:
             self.__connection.commit()
 
-    def register_task(self, agent: str, task_output: Message) -> None:
+    def register_task(self, agent: str, is_alert: bool, task_output: Message) -> None:
         if type(task_output) not in [IPOutput, IPerfOutput, PingOutput, SystemMonitorOutput]:
             raise DatabaseException('Invalid message to register')
 
-        columns = { 'agent': agent, 'timestamp': time.time() }
+        columns = { 'agent': agent, 'timestamp': time.time(), 'is_alert': is_alert }
         for column, value in task_output.__dict__.items():
             if column in TABLE_COLUMNS:
                 columns[column] = value
@@ -76,14 +77,16 @@ class Database:
             'SELECT DISTINCT agent FROM command_output ORDER BY agent ASC;')]
 
     def get_tasks(self,
+                  alerts_only: bool = False,
                   agent_target: Optional[tuple[str, str]] = None,
                   limit_offset: Optional[tuple[int, int]] = None) -> list[dict[str, Any]]:
 
         sql_arguments: tuple[Any, ...] = ()
         if agent_target is None:
-            condition = ''
+            condition = 'WHERE is_alert = 1' if alerts_only else ''
         else:
-            condition = 'WHERE agent = ? AND target = ?'
+            alerts_condition = 'AND is_alert = 1' if alerts_only else ''
+            condition = f'WHERE agent = ? AND target = ? {alerts_condition}'
             sql_arguments += agent_target
 
         if limit_offset is None:

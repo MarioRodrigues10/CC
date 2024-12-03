@@ -12,10 +12,10 @@ class DatabaseTests(TestCase):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.database = Database(':memory:')
-        self.database.register_task('agent1', IPOutput('wlan0', True, 1000, 10, 2000, 15))
-        self.database.register_task('agent2', IPerfOutput('localhost', 10.5, 100.0, 0.5))
-        self.database.register_task('agent3', PingOutput('1.1.1.1', 15.0, 1.0))
-        self.database.register_task('agent1', SystemMonitorOutput(1.0, 0.5))
+        self.database.register_task('agent1', False, IPOutput('wlan0', True, 1000, 10, 2000, 15))
+        self.database.register_task('agent2', True, IPerfOutput('localhost', 10.5, 100.0, 0.5))
+        self.database.register_task('agent3', False, PingOutput('1.1.1.1', 15.0, 1.0))
+        self.database.register_task('agent1', True, SystemMonitorOutput(1.0, 0.5))
 
     def test_agents(self) -> None:
         self.assertEqual(self.database.get_agent_names(), ['agent1', 'agent2', 'agent3'])
@@ -32,22 +32,26 @@ class DatabaseTests(TestCase):
         self.assertEqual(tasks, [{
                 'agent': 'agent1',
                 'target': 'agent1',
+                'is_alert': 1,
                 'cpu': 1.0,
                 'memory': 0.5
             }, {
                 'agent': 'agent3',
                 'target': '1.1.1.1',
+                'is_alert': 0,
                 'avg_latency': 15.0,
                 'stdev_latency': 1.0
             }, {
                 'agent': 'agent2',
                 'target': 'localhost',
+                'is_alert': 1,
                 'jitter': 10.5,
                 'bandwidth': 100.0,
                 'loss': 0.5
             }, {
                 'agent': 'agent1',
                 'target': 'agent1',
+                'is_alert': 0,
                 'interface_name': 'wlan0',
                 'connectivity': 1,
                 'tx_bytes': 1000,
@@ -56,6 +60,10 @@ class DatabaseTests(TestCase):
                 'rx_packets': 15
             }
         ])
+
+    def test_alert_filter(self) -> None:
+        tasks = self.database.get_tasks(alerts_only=True)
+        self.assertEqual(len(tasks), 2)
 
     def test_agent_target_filter(self) -> None:
         tasks = self.database.get_tasks(agent_target=('agent1', 'agent1'))
@@ -66,8 +74,8 @@ class DatabaseTests(TestCase):
         agents = [row['agent'] for row in tasks]
         self.assertEqual(agents, ['agent3', 'agent2'])
 
-    def test_both_filters(self) -> None:
-        tasks = self.database.get_tasks(('agent1', 'agent1'), (100, 1))
+    def test_all_filters(self) -> None:
+        tasks = self.database.get_tasks(True, ('agent1', 'agent1'), (100, 0))
         self.assertTrue('connectivity' in tasks[0])
 
 if __name__ == '__main__':
