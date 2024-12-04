@@ -2,7 +2,9 @@ import sys
 from pprint import pprint
 
 from common import AlertFlow
+from .Database import Database
 from .TasksParser import TasksParser
+from .HTTPBackend import HTTPBackend
 
 class AlertFlowImpl(AlertFlow):
     def handle_message(self, message: bytes, host: str) -> None:
@@ -15,6 +17,9 @@ def main(argv: list[str]) -> None:
 
     tasks = TasksParser.parse_json(argv[1])
     pprint(tasks)
+
+    database = Database('server.sqlite')
+    HTTPBackend(database).serve()
 
     alertflow = AlertFlowImpl('server', 10000)
     alertflow.connection_acceptance_loop()
