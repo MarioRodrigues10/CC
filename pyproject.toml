@@ -31,8 +31,7 @@
         "Topic :: System :: Networking"
     ]
 
-dependencies = ["readerwriterlock"]
-
+    dependencies = ["readerwriterlock", "inotify_simple"]
 
 [project.urls]
     Homepage = "https://github.com/mariorodrigues10/CC"
@@ -44,3 +43,4 @@ py-modules = []
 
 [tool.mypy]
     disallow_untyped_defs = true
+    ignore_missing_imports = true
