@@ -1,19 +1,26 @@
+import sys
+
 from common import (
     PingCommand,
     IPerfCommand, TransportProtocol,
     SystemMonitorCommand,
     MessageTask,
 )
+from .IPerfServer import IPerfServer
 from .Orchestrator import Orchestrator
 
-def main() -> None:  # Removed unused 'argv' argument
+def main(argv: list[str]) -> None:
     orchestrator = Orchestrator()
+
+    IPerfServer.start()
+
+    other=argv[1]
 
     task = MessageTask(
         task_id='task-202',
-        frequency=0.30,
+        frequency=2.0,
         command=PingCommand(
-            targets=['www.google.com'],
+            targets=[other],
             count=5,
             rtt_alert=200.0,
         ),
@@ -21,7 +28,7 @@ def main() -> None:  # Removed unused 'argv' argument
 
     task1 = MessageTask(
         task_id='task-203',
-        frequency=0.20,
+        frequency=1.0,
         command=SystemMonitorCommand(
             cpu_alert=90.0,
             memory_alert=90.0,
@@ -29,11 +36,11 @@ def main() -> None:  # Removed unused 'argv' argument
     )
     task2 = MessageTask(
         task_id='task-204',
-        frequency=10.00,
+        frequency=5.00,
         command=IPerfCommand(
-            targets=['127.0.0.1'],  # Localhost for testing
+            targets=[other],  # Localhost for testing
             transport=TransportProtocol.TCP,  # TCP mode
-            time=7,  # Test duration of 10 seconds
+            time=7.0,  # Test duration of 10 seconds
             jitter_alert=0.0,  # Jitter alert not applicable in TCP mode
             loss_alert=0.0,  # Loss alert not applicable in TCP mode
             bandwidth_alert=100.0,  # Bandwidth alert threshold (Mbps)
@@ -48,10 +55,5 @@ def main() -> None:  # Removed unused 'argv' argument
         r = orchestrator.get_results()
         print(r)
 
-    try:
-        orchestrator.run()
-    except KeyboardInterrupt:
-        print('Shutting down ...')
-
 if __name__ == '__main__':
-    main()
+    main(sys.argv)
