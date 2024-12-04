@@ -26,6 +26,8 @@ class IPerfCommand(Command):
         self.bandwidth_alert = bandwidth_alert
 
     def run(self) -> dict[str, IPerfOutput]:
+        print('Running iperf client')
+
         results = {}
         for target in self.targets:
             iperf_command = ['iperf3', '-c', target, '-t', str(self.time), '-J']
@@ -33,10 +35,15 @@ class IPerfCommand(Command):
                 iperf_command.insert(1, '-u')
 
             try:
-                process = subprocess.run(iperf_command, capture_output=True, check=True)
+                process = subprocess.run(iperf_command,
+                                         capture_output=True,
+                                         check=True,
+                                         timeout= 2 * self.time)
                 stdout = json.loads(process.stdout.decode('utf-8'))
+            except subprocess.TimeoutExpired as e:
+                raise CommandException('iperf3 timed out (avoided deadlock)!') from e
             except (OSError, subprocess.SubprocessError) as e:
-                raise CommandException('ping exited with non-0 exit code!') from e
+                raise CommandException('iperf3 exited with non-0 exit code!') from e
             except (json.JSONDecodeError, UnicodeDecodeError) as e:
                 raise CommandException('Invalid iperf client output') from e
 
