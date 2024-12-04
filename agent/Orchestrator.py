@@ -1,70 +1,57 @@
 import threading
 import time
+from typing import Any
+import sys
+
 from readerwriterlock import rwlock
 
-from common import (
-    IPerfCommand,
-    MessageTask,
-    CommandException,
-)
-
+from common import CommandException, IPerfCommand, Message, MessageTask, PingCommand
 from .IPerfServer import IPerfServer
+
+TIME_TO_SLEEP_AFTER_FAILED_IPERF = 1.0
 
 class Orchestrator:
     def __init__(self) -> None:
-        self.lock = rwlock.RWLockFairD()
-        self.tasks: dict[str, MessageTask] = {}
-        self.threads: list[threading.Thread] = []
-        self.buffer: list[str] = []
+        self.lock = rwlock.RWLockFair()
+        self.buffer: list[Message] = []
         self.condition = threading.Condition()
 
     def add_task(self, message_task: MessageTask) -> None:
         with self.lock.gen_wlock():
-            self.tasks[message_task.task_id] = message_task
             thread = threading.Thread(target=self.execute_task, args=(message_task,))
             thread.daemon = True
             thread.start()
-            self.threads.append(thread)
-            print(f"Task {message_task.task_id} added")
 
     def execute_task(self, message_task: MessageTask) -> None:
+        lock: Any
         if isinstance(message_task.command, IPerfCommand):
-            while True:
-                try:
-                    with self.lock.gen_wlock():
-                        IPerfServer.stop_if_running()
-                        result = str(message_task.command.run())  # Serialize result
-                        with self.condition:
-                            self.buffer.append(result)
-                            print("IPERF normal")
-                            self.condition.notify()
-                except CommandException as e:
-                    result = str(e)  # Capture the exception as a string
-                    print("IPERF exception")
-                finally:
-                    IPerfServer.start_if_not_running()
-                time.sleep(message_task.frequency)
+            lock = self.lock.gen_wlock()
         else:
-            while True:
-                with self.lock.gen_rlock():
-                    try:
-                        result = str(message_task.command.run())  # Serialize result
-                        with self.condition:
-                            self.buffer.append(result)
-                            self.condition.notify()
-                    except CommandException as e:
-                        result = str(e)  # Capture the exception as a string
-                time.sleep(message_task.frequency)
+            lock = self.lock.gen_rlock()
 
-    def start(self) -> None:
-        for thread in self.threads:
-            thread.start()
+        needs_to_pause_iperf = type(message_task.command) in [IPerfCommand, PingCommand]
 
-    def run(self) -> None:
-        for thread in self.threads:
-            thread.join()
+        while True:
+            if needs_to_pause_iperf:
+                IPerfServer.pause()
 
-    def get_results(self) -> str:  # Update if returning single result
+            with lock:
+                time_to_sleep = message_task.frequency
+                try:
+                    result = message_task.command.run()
+                    with self.condition:
+                        self.buffer.append(result)
+                        self.condition.notify()
+                except CommandException as e:
+                    print(f'Ignored CommandException: {e}', file=sys.stderr)
+                    if isinstance(message_task.command, IPerfCommand):
+                        time_to_sleep = TIME_TO_SLEEP_AFTER_FAILED_IPERF
+
+            if needs_to_pause_iperf:
+                IPerfServer.resume()
+            time.sleep(time_to_sleep)
+
+    def get_results(self) -> Message:
         with self.condition:
             while not self.buffer:
                 self.condition.wait()
