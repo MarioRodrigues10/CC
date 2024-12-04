@@ -12,6 +12,7 @@ TABLE_COLUMNS = {
     'target': 'TEXT',
     'timestamp': 'REAL',
     'is_alert': 'INTEGER',
+    'command_type': 'TEXT',
 
     'interface_name': 'TEXT',
     'connectivity': 'INTEGER',
@@ -58,7 +59,12 @@ class Database:
         if type(task_output) not in [IPOutput, IPerfOutput, PingOutput, SystemMonitorOutput]:
             raise DatabaseException('Invalid message to register')
 
-        columns = { 'agent': agent, 'timestamp': time.time(), 'is_alert': is_alert }
+        columns = {
+            'agent': agent,
+            'timestamp': time.time(),
+            'is_alert': is_alert,
+            'command_type': type(task_output).__name__
+        }
         for column, value in task_output.__dict__.items():
             if column in TABLE_COLUMNS:
                 columns[column] = value

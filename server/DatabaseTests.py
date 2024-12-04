@@ -33,18 +33,21 @@ class DatabaseTests(TestCase):
                 'agent': 'agent1',
                 'target': 'agent1',
                 'is_alert': 1,
+                'command_type': 'SystemMonitorOutput',
                 'cpu': 1.0,
                 'memory': 0.5
             }, {
                 'agent': 'agent3',
                 'target': '1.1.1.1',
                 'is_alert': 0,
+                'command_type': 'PingOutput',
                 'avg_latency': 15.0,
                 'stdev_latency': 1.0
             }, {
                 'agent': 'agent2',
                 'target': 'localhost',
                 'is_alert': 1,
+                'command_type': 'IPerfOutput',
                 'jitter': 10.5,
                 'bandwidth': 100.0,
                 'loss': 0.5
@@ -52,6 +55,7 @@ class DatabaseTests(TestCase):
                 'agent': 'agent1',
                 'target': 'agent1',
                 'is_alert': 0,
+                'command_type': 'IPOutput',
                 'interface_name': 'wlan0',
                 'connectivity': 1,
                 'tx_bytes': 1000,
