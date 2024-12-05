@@ -1,7 +1,7 @@
 import sys
 from pprint import pprint
 
-from common import AlertFlow, IPOutput, IPerfOutput, PingOutput, SystemMonitorOutput
+from common import AlertFlow
 from .Database import Database
 from .TasksParser import TasksParser
 from .HTTPBackend import HTTPBackend
@@ -19,20 +19,11 @@ def main(argv: list[str]) -> None:
     pprint(tasks)
 
     database = Database('server.sqlite')
-    print('Database created')
-    # Insert tasks into database
-    database.register_task('agent1', False, IPOutput('wlan0', True, 1000, 10, 2000, 15))
-    database.register_task('agent2', True, IPerfOutput('localhost', 10.5, 100.0, 0.5))
-    database.register_task('agent3', False, PingOutput('1.1.1.1', 15.0, 1.0))
-    database.register_task('agent1', True, SystemMonitorOutput(1.0, 0.5))
 
     HTTPBackend(database).serve()
-    print('HTTP server started')
 
     alertflow = AlertFlowImpl('server', 10000)
     alertflow.connection_acceptance_loop()
-
-    print('AlertFlow started')
 
     # server = NetTask('server', 9999)
     # while True:

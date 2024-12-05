@@ -20,3 +20,6 @@ lib/
 
 # mypy
 .mypy_cache/
+
+# Database
+*.sqlite3
