@@ -1,59 +1,67 @@
 import sys
+from socket import gethostname
+from threading import Thread
 
 from common import (
-    PingCommand,
-    IPerfCommand, TransportProtocol,
-    SystemMonitorCommand,
-    MessageTask,
+    AlertFlow, NetTask,
+    Message, MessageTask, MessageTasksRequest, SerializationException,
+    ALERTFLOW_DEFAULT_PORT, NETTASK_DEFAULT_PORT
 )
+
 from .IPerfServer import IPerfServer
 from .Orchestrator import Orchestrator
 
+def task_end_monitor(alertflow: AlertFlow, nettask: NetTask, orchestrator: Orchestrator) -> None:
+    while True:
+        results, task = orchestrator.get_results()
+        messages = []
+
+        if isinstance(results, dict):
+            messages = list(results.values())
+        else:
+            messages = [results]
+
+        for message in messages:
+            if task.command.should_emit_alert(message):
+                alertflow.send(message.serialize())
+            else:
+                nettask.send(message.serialize(), 'server')
+
 def main(argv: list[str]) -> None:
-    orchestrator = Orchestrator()
+    if len(argv) != 2:
+        print('Usage: python -m agent <server_address>')
+        sys.exit(1)
+
+    server_address = argv[1]
 
     IPerfServer.start()
+    orchestrator = Orchestrator()
 
-    other=argv[1]
+    nettask = NetTask(gethostname())
+    nettask.connect('server', (server_address, NETTASK_DEFAULT_PORT))
+    nettask.send(MessageTasksRequest().serialize(), 'server')
 
-    task = MessageTask(
-        task_id='task-202',
-        frequency=2.0,
-        command=PingCommand(
-            targets=[other],
-            count=5,
-            rtt_alert=200.0,
-        ),
-    )
+    alertflow = AlertFlow(gethostname())
+    alertflow.connect(server_address, ALERTFLOW_DEFAULT_PORT)
 
-    task1 = MessageTask(
-        task_id='task-203',
-        frequency=1.0,
-        command=SystemMonitorCommand(
-            cpu_alert=90.0,
-            memory_alert=90.0,
-        ),
-    )
-    task2 = MessageTask(
-        task_id='task-204',
-        frequency=5.00,
-        command=IPerfCommand(
-            targets=[other],  # Localhost for testing
-            transport=TransportProtocol.TCP,  # TCP mode
-            time=7.0,  # Test duration of 10 seconds
-            jitter_alert=0.0,  # Jitter alert not applicable in TCP mode
-            loss_alert=0.0,  # Loss alert not applicable in TCP mode
-            bandwidth_alert=100.0,  # Bandwidth alert threshold (Mbps)
-        ),
-    )
-
-    orchestrator.add_task(task)
-    orchestrator.add_task(task1)
-    orchestrator.add_task(task2)
+    task_end_thread = Thread(target=task_end_monitor, args=(alertflow, nettask, orchestrator))
+    task_end_thread.daemon = True
+    task_end_thread.start()
 
     while True:
-        r = orchestrator.get_results()
-        print(r)
+        messages, _ = nettask.receive()
+
+        for message_bytes in messages:
+            try:
+                message = Message.deserialize(message_bytes)
+                if isinstance(message, MessageTask):
+                    print(f'Received task {message.task_id}')
+                    orchestrator.add_task(message)
+                else:
+                    message_type = type(message).__name__
+                    print(f'Received wrong message type: {message_type}', file=sys.stderr)
+            except SerializationException as e:
+                print(f'Ignoring SerializationException: {e}', file=sys.stderr)
 
 if __name__ == '__main__':
     main(sys.argv)

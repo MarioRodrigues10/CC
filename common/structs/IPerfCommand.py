@@ -26,8 +26,6 @@ class IPerfCommand(Command):
         self.bandwidth_alert = bandwidth_alert
 
     def run(self) -> dict[str, IPerfOutput]:
-        print('Running iperf client')
-
         results = {}
         for target in self.targets:
             iperf_command = ['iperf3', '-c', target, '-t', str(self.time), '-J']
@@ -48,6 +46,11 @@ class IPerfCommand(Command):
                 raise CommandException('Invalid iperf client output') from e
 
             try:
+                if self.transport == TransportProtocol.UDP:
+                    iperf_results = stdout['end']['sum']
+                else:
+                    iperf_results = stdout['end']['sum_received']
+
                 iperf_results = stdout['end']['sum_received']
 
                 bandwidth = float(iperf_results['bits_per_second'])

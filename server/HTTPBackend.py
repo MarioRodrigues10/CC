@@ -83,11 +83,15 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
 
 class HTTPBackend:
     def __init__(self, database: Database, port: int = 8000):
+        self.database = database
+        self.port = port
+
+    def serve(self) -> None:
+        database = self.database
+
         class DatabaseHandler(HTTPRequestHandler):
             def __init__(self, *args: Any, **kwargs: Any):
                 super().__init__(*args, database=database, **kwargs)
 
-        self.__httpd = HTTPServer(('0.0.0.0', port), DatabaseHandler)
-
-    def serve(self) -> None:
-        self.__httpd.serve_forever()
+        httpd = HTTPServer(('0.0.0.0', self.port), DatabaseHandler)
+        httpd.serve_forever()
