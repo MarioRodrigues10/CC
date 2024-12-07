@@ -6,8 +6,6 @@ from urllib.parse import urlparse, parse_qs
 
 from .Database import Database
 
-DEFAULT_PAGINATION_LIMIT = 25
-
 class HTTPRequestHandler(BaseHTTPRequestHandler):
     def __init__(self, *args: Any, database: Database, **kwargs: Any):
         self.__database = database
@@ -41,12 +39,10 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
         self.send_header('Content-Type', 'application/json; charset=utf-8')
         self.end_headers()
 
-        limit = DEFAULT_PAGINATION_LIMIT
-        offset = 0
+        limit_offset = None
         if 'limit' in query and 'offset' in query:
             try:
-                limit = int(query['limit'][0])
-                offset = int(query['offset'][0])
+                limit_offset = int(query['limit'][0]), int(query['offset'][0])
             except ValueError:
                 pass
 
@@ -58,7 +54,7 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
         if 'agent' in query and 'target' in query:
             agent_target = query['agent'][0], query['target'][0]
 
-        query_result = self.__database.get_tasks(alerts_only, agent_target, (limit, offset))
+        query_result = self.__database.get_tasks(alerts_only, agent_target, limit_offset)
         json_bytes = json.dumps(query_result).encode('utf-8')
         self.wfile.write(json_bytes)
 
@@ -78,6 +74,8 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
                 self.__serve_agents()
             case '/tasks':
                 self.__serve_tasks(parse_qs(url.query, keep_blank_values=True))
+            case '/Pele.webp':
+                self.__serve_file(200, 'image/webp', 'public/Pele-Routers.webp')
             case _:
                 self.__serve_file(404, 'text/html', '404.html')
 
