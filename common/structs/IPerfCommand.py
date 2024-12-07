@@ -51,8 +51,6 @@ class IPerfCommand(Command):
                 else:
                     iperf_results = stdout['end']['sum_received']
 
-                iperf_results = stdout['end']['sum_received']
-
                 bandwidth = float(iperf_results['bits_per_second'])
                 jitter = math.nan
                 loss = math.nan
