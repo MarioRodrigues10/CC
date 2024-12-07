@@ -5,7 +5,7 @@ import sys
 
 from readerwriterlock import rwlock
 
-from common import CommandException, IPerfCommand, Message, MessageTask, PingCommand
+from common import CommandException, IPerfCommand, MessageTask, PingCommand
 from .IPerfServer import IPerfServer
 
 TIME_TO_SLEEP_AFTER_FAILED_IPERF = 1.0
@@ -13,7 +13,7 @@ TIME_TO_SLEEP_AFTER_FAILED_IPERF = 1.0
 class Orchestrator:
     def __init__(self) -> None:
         self.lock = rwlock.RWLockFair()
-        self.buffer: list[Message] = []
+        self.buffer: list[tuple[Any, MessageTask]] = []
         self.condition = threading.Condition()
 
     def add_task(self, message_task: MessageTask) -> None:
@@ -40,7 +40,7 @@ class Orchestrator:
                 try:
                     result = message_task.command.run()
                     with self.condition:
-                        self.buffer.append(result)
+                        self.buffer.append((result, message_task))
                         self.condition.notify()
                 except CommandException as e:
                     print(f'Ignored CommandException: {e}', file=sys.stderr)
@@ -51,7 +51,7 @@ class Orchestrator:
                 IPerfServer.resume()
             time.sleep(time_to_sleep)
 
-    def get_results(self) -> Message:
+    def get_results(self) -> tuple[Any, MessageTask]:
         with self.condition:
             while not self.buffer:
                 self.condition.wait()

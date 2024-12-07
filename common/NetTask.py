@@ -34,6 +34,12 @@ class NetTask:
         self.__bg_thread.daemon = True
         self.__bg_thread.start()
 
+    def __sendto(self, segment: NetTaskSegment, host: str) -> None:
+        try:
+            self.__socket.sendto(segment.serialize(), self.__host_addr_port[host])
+        except OSError:
+            pass
+
     @staticmethod
     def __synchronized(f: Callable[..., T]) -> Callable[..., T]:
         def wrapper(self: Self, *args: Any) -> T:
@@ -66,8 +72,7 @@ class NetTask:
 
         reply_segments = connection.handle_received_segment(segment)
         for reply_segment in reply_segments:
-            addr_port = self.__host_addr_port[host]
-            self.__socket.sendto(reply_segment.serialize(), addr_port)
+            self.__sendto(reply_segment, host)
 
         self.__condition.notify_all()
 
@@ -77,14 +82,23 @@ class NetTask:
                 wakeup_segment = connection.act_on_timeout()
 
                 if wakeup_segment is not None:
-                    addr_port = self.__host_addr_port[host]
-                    self.__socket.sendto(wakeup_segment.serialize(), addr_port)
-            except NetTaskConnectionException as e:
+                    self.__sendto(wakeup_segment, host)
+            except NetTaskConnectionException:
                 if self.__is_server:
-                    print('NetTask connection closed unexpectedly', file=stderr)
+                    print(f'NetTask connection to {host} closed unexpectedly', file=stderr)
                     del self.__connections[host]
                 else:
-                    raise e
+                    while True:
+                        try:
+                            print(f'NetTask connection to {host} dropped: Attempting reconnection',
+                                  file=stderr)
+
+                            self.__connections[host] = NetTaskConnection(self.__own_host_name, True)
+                            connect_segment = self.__connections[host].prepare_connect_segment()
+                            self.__sendto(connect_segment, host)
+                            break
+                        except NetTaskConnectionException:
+                            print(f'NetTask reconnection to {host} failed', file=stderr)
 
     def __time_until_next_timeout(self) -> Optional[float]:
         try:
@@ -123,9 +137,8 @@ class NetTask:
         self.__host_addr_port[host] = addr_port
         if host not in self.__connections:
             self.__connections[host] = NetTaskConnection(self.__own_host_name, True)
-
             connect_segment = self.__connections[host].prepare_connect_segment()
-            self.__socket.sendto(connect_segment.serialize(), addr_port)
+            self.__sendto(connect_segment, host)
 
             while True:
                 self.__assert_thread_alive()
@@ -146,8 +159,7 @@ class NetTask:
             for connection_host, connection in list(self.__connections.items()):
                 messages, window_segment = connection.get_received_messages()
                 if window_segment is not None:
-                    addr_port = self.__host_addr_port[connection_host]
-                    self.__socket.sendto(window_segment.serialize(), addr_port)
+                    self.__sendto(window_segment, connection_host)
 
                 if connection.is_closed():
                     del self.__connections[connection_host]
@@ -177,8 +189,7 @@ class NetTask:
 
                 for segment in segments:
                     # Receiver's window is not full and segment can be transmitted now
-                    addr_port = self.__host_addr_port[host]
-                    self.__socket.sendto(segment.serialize(), addr_port)
+                    self.__sendto(segment, host)
                     return
             except NetTaskConnectionException:
                 # Full send queue
@@ -204,8 +215,7 @@ class NetTask:
                 else:
                     close_segment = connection.close()
                     if close_segment is not None:
-                        addr_port = self.__host_addr_port[h]
-                        self.__socket.sendto(close_segment.serialize(), addr_port)
+                        self.__sendto(close_segment, h)
 
             if len(hosts) == 0:
                 return

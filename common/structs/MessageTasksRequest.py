@@ -2,7 +2,7 @@ from typing import Any, Self
 
 from .Message import Message, SerializationException
 
-class MessagePrepare(Message):
+class MessageTasksRequest(Message):
     def __init__(self) -> None:
         pass
 
@@ -12,11 +12,11 @@ class MessagePrepare(Message):
     @classmethod
     def deserialize(cls, data: bytes) -> Self:
         if len(data) != 0:
-            raise SerializationException('Incorrect MessagePrepare length')
+            raise SerializationException('Incorrect MessageTasksRequest length')
         return cls()
 
     def __eq__(self, other: Any) -> bool:
-        return isinstance(other, MessagePrepare)
+        return isinstance(other, MessageTasksRequest)
 
     def __repr__(self) -> str:
-        return 'MessagePrepare()'
+        return 'MessageTasksRequest()'

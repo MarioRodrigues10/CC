@@ -3,12 +3,16 @@ import sys
 from threading import Thread, RLock
 from typing import Optional, cast
 
+TCP_TIMEOUT = 10_000 # milliseconds
+
 class AlertFlowException(Exception):
     pass
 
 class AlertFlow:
     def __init__(self, own_host_name: str, bind_port: Optional[int] = None):
         self.__socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.__socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_USER_TIMEOUT, TCP_TIMEOUT)
+
         self.__own_host_name = own_host_name
         if bind_port is not None:
             self.__socket.bind(('0.0.0.0', bind_port))
@@ -36,6 +40,10 @@ class AlertFlow:
 
     def __reconnect(self) -> None:
         while True:
+            print(
+                f'AlertFlow connection to {self.__connected_addr} dropped: Attempting reconnection',
+                file=sys.stderr)
+
             try:
                 try:
                     self.__socket.close()
@@ -43,7 +51,10 @@ class AlertFlow:
                     pass
 
                 self.__socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.__socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_USER_TIMEOUT, TCP_TIMEOUT)
                 self.connect(cast(str, self.__connected_addr), cast(int, self.__connected_port))
+                print(f'AlertFlow reconnection to {self.__connected_addr} succeeded',
+                      file=sys.stderr)
                 return
             except OSError:
                 pass
@@ -54,11 +65,14 @@ class AlertFlow:
         with self.__lock:
             total_sent = 0
             while total_sent < len(segment):
-                sent = self.__socket.send(segment[total_sent:])
-                if sent == 0:
-                    # NOTE: this needs to be tested in CORE
+                try:
+                    sent = self.__socket.send(segment[total_sent:])
+                    if sent == 0:
+                        self.__reconnect()
+
+                    total_sent += sent
+                except OSError:
                     self.__reconnect()
-                total_sent += sent
 
     def connection_acceptance_loop(self) -> None:
         with self.__lock:
