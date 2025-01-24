@@ -3,6 +3,8 @@
 UMinho's Computer Communications 2024/25 assignment. See [Assignment.pdf](Assignment.pdf) for more
 details.
 
+Grade: 19.5 / 20 :star:
+
 ### Authors
 
  - Afonso Santos (A104276)
